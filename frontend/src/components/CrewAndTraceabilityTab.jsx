@@ -37,9 +37,9 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
     <section className="screen-section">
       <header className="screen-header screen-header-bordered">
         <div>
-          <h1 className="screen-title">Tripulación a Bordo y Trazabilidad NASA-STD-3001</h1>
+          <h1 className="screen-title">Tripulación</h1>
           <p className="screen-subtitle">
-            Selecciona un tripulante para cargar su telemetría en Resumen · Anclaje normativo Vol. 1 Rev. C / Vol. 2 Rev. E
+            Selecciona un tripulante para ver su estado
           </p>
         </div>
         <a
@@ -190,84 +190,37 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
         })}
       </div>
 
-      {/* Rigor científico y matriz normativa (guia-fuentes-anclaje-marte.md) */}
-      <div className="white-panel">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
-          <h2 style={{ margin: 0, fontSize: "16px", fontWeight: 800 }}>
-            Anclaje Normativo y Límites de Rigor Científico (guia-fuentes-anclaje-marte.md)
-          </h2>
-          <span className="mono" style={{ fontSize: "11px", color: "#475569" }}>
-            Latencia ML: {res.latencia_ml_ms ?? 1.5} ms (≤ 1000 ms, Tabla 10.2-1)
+      {/* Trazabilidad normativa desplegable para mantener la vista limpia */}
+      <details className="white-panel" style={{ cursor: "pointer" }}>
+        <summary style={{ fontSize: "14px", fontWeight: 800, listStyle: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>Trazabilidad Normativa NASA-STD-3001 y Referencias OSDR</span>
+          <span className="mono" style={{ fontSize: "11px", color: "#64748B" }}>
+            Latencia ML: {res.latencia_ml_ms ?? 1.5} ms · Ver detalles ▾
           </span>
-        </div>
+        </summary>
 
-        <div
-          style={{
-            background: "#FAF7F2",
-            border: "1px solid #DFD8CA",
-            borderRadius: "14px",
-            padding: "12px 14px",
-            fontSize: "12px",
-            color: "#334155",
-            lineHeight: 1.55,
-          }}
-        >
-          <strong>Transparencia normativa (Secc. 6):</strong> <code>ASTROSKIN</code> y <code>ACTIWATCH</code> constituyen la arquitectura instrumental seleccionada por el equipo para cumplir <code>V1 3004.h</code>, <code>V1 6001</code> y <code>V2 9023</code>; no figuran homologados comercialmente en <code>NASA-STD-3001</code>. La norma no fija cifras numéricas universales en reposo para presión arterial, frecuencia cardíaca, glucemia ni ánimo (se evalúa desvío sobre línea base individual pre-misión conforme a <code>V1 3000</code>, <code>V1 4011</code>, <code>V1 4015-4017</code>), mientras que sí establece límites explícitos de hipotermia central (<code>&lt; 35,0 °C</code>, Vol. 1 Apéndice C frente a lectura cutánea <code>V2 11011</code>), sueño (<code>8,5 h</code>, <code>V1 6001</code>), radiación en espacio libre (<code>&lt; 1,3 mSv/d</code>, <code>V1 4033</code>) y cabina (<code>P_I O₂</code> / <code>ppCO₂</code>, <code>V2 6003-6004</code>).
-        </div>
-
-        <div style={{ overflowX: "auto" }}>
-          <table className="nasa-table">
-            <thead>
-              <tr>
-                <th>Indicador Central</th>
-                <th>Arquitectura Instrumental</th>
-                <th>Citas y Requisitos NASA-STD-3001</th>
-              </tr>
-            </thead>
-            <tbody>
-              {TRACEABILITY_ROWS.map((r) => (
-                <tr key={r.ind}>
-                  <td><strong>{r.ind}</strong></td>
-                  <td>{r.src}</td>
-                  <td><code>{r.nasa}</code></td>
+        <div style={{ marginTop: "12px", display: "flex", flexDirection: "column", gap: "12px", cursor: "default" }}>
+          <div style={{ overflowX: "auto" }}>
+            <table className="nasa-table">
+              <thead>
+                <tr>
+                  <th>Indicador Central</th>
+                  <th>Arquitectura Instrumental</th>
+                  <th>Citas y Requisitos NASA-STD-3001</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </thead>
+              <tbody>
+                {TRACEABILITY_ROWS.map((r) => (
+                  <tr key={r.ind}>
+                    <td><strong>{r.ind}</strong></td>
+                    <td>{r.src}</td>
+                    <td><code>{r.nasa}</code></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      {/* Bitácora + Referencias OSDR */}
-      <div className="two-col-ops">
-        <div className="white-panel">
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800 }}>Bitácora de Decisiones Ejecutadas</h3>
-          {!ui.bitacora_acciones || ui.bitacora_acciones.length === 0 ? (
-            <p style={{ margin: 0, fontSize: "12px", color: "#64748B" }}>
-              Sin intervenciones registradas en esta sesión.
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-              {ui.bitacora_acciones.map((b, i) => (
-                <div
-                  key={i}
-                  className="mono"
-                  style={{
-                    fontSize: "11.5px",
-                    padding: "7px 10px",
-                    borderRadius: "10px",
-                    background: "#FAF7F2",
-                    border: "1px solid #E5DFD3",
-                  }}
-                >
-                  {b}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="white-panel">
-          <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800 }}>Referencias NASA OSDR (Respaldo Offline)</h3>
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
             {studies.map((s) => (
               <div
@@ -285,6 +238,34 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
             ))}
           </div>
         </div>
+      </details>
+
+      {/* Bitácora */}
+      <div className="white-panel">
+        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800 }}>Bitácora de Decisiones</h3>
+        {!ui.bitacora_acciones || ui.bitacora_acciones.length === 0 ? (
+          <p style={{ margin: 0, fontSize: "12px", color: "#64748B" }}>
+            Sin intervenciones registradas en esta sesión.
+          </p>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+            {ui.bitacora_acciones.map((b, i) => (
+              <div
+                key={i}
+                className="mono"
+                style={{
+                  fontSize: "11.5px",
+                  padding: "7px 10px",
+                  borderRadius: "10px",
+                  background: "#FAF7F2",
+                  border: "1px solid #E5DFD3",
+                }}
+              >
+                {b}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

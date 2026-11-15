@@ -292,7 +292,7 @@ export default function App() {
         </main>
       </div>
 
-      {/* Dock inferior discreto: Simulación, Rutina Diaria y Escenarios Demo */}
+      {/* Dock inferior discreto */}
       <footer className="bottom-dock">
         <div className="dock-group">
           <button
@@ -302,8 +302,8 @@ export default function App() {
           >
             {ui.simulacion_activa ? "⏸ Pausar" : "▶ Reanudar"}
           </button>
-          <span style={{ fontSize: "11.5px", fontWeight: 800, color: "#0F172A" }}>
-            🎯 Rutina ({doneRoutine}/4) · Racha {ui.racha_dias}d:
+          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748B" }}>
+            Rutina {doneRoutine}/4
           </span>
           {rutinaKeys.map(([key, lbl]) => (
             <button
@@ -318,24 +318,19 @@ export default function App() {
         </div>
 
         <div className="dock-group">
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748B" }}>Escenarios:</span>
-          {[
-            ["nominal", "🟢 Nominal"],
-            ["sueno_glucemia_preventiva", "😴 Sueño+Gluc."],
-            ["evento_cardiovascular_agudo", "❤️ Colapso CV"],
-            ["hipoxia_critica", "🫁 Hipoxia"],
-            ["hipotermia_critica", "❄️ Hipotermia"],
-            ["estres_termico_critico", "🌡️ Estrés Térm."],
-          ].map(([escKey, label]) => (
-            <button
-              key={escKey}
-              type="button"
-              className={`pill-btn sm ${ui.escenario_actual === escKey ? "dark" : ""}`}
-              onClick={() => apiPost("/api/scenario", { escenario: escKey })}
-            >
-              {label}
-            </button>
-          ))}
+          <select
+            aria-label="Seleccionar escenario de simulación"
+            className="pill-btn sm"
+            value={ui.escenario_actual}
+            onChange={(e) => apiPost("/api/scenario", { escenario: e.target.value })}
+          >
+            <option value="nominal">🟢 Escenario: Nominal</option>
+            <option value="sueno_glucemia_preventiva">😴 Sueño + Glucemia (Caution)</option>
+            <option value="evento_cardiovascular_agudo">❤️ Colapso Cardiovascular</option>
+            <option value="hipoxia_critica">🫁 Hipoxia Crítica</option>
+            <option value="hipotermia_critica">❄️ Hipotermia Central</option>
+            <option value="estres_termico_critico">🌡️ Estrés Térmico</option>
+          </select>
           <button
             type="button"
             className={`pill-btn sm ${ui.datos_manuales_obsoletos ? "blue" : ""}`}

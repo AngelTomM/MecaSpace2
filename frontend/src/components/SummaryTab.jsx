@@ -74,7 +74,7 @@ export default function SummaryTab({
         <div>
           <h1 className="screen-title">Resumen de Salud</h1>
           <p className="screen-subtitle">
-            Tránsito a Marte · &gt;30/60 días · Latencia 20 min/sentido · Codificación NASA-STD-3001 (Día {data.mission_day})
+            Tránsito a Marte · Día {data.mission_day}
           </p>
         </div>
 
@@ -383,36 +383,29 @@ export default function SummaryTab({
                   type="button"
                   className="pill-btn sm"
                   onClick={onGoToParameters}
-                  title="Enlace directo a procedimientos y avisos (Apéndice F.6.4.h)"
+                  title="Ver detalles y protocolos"
                 >
-                  📋 Guía F.6.4
+                  📋 Protocolos
                 </button>
               </div>
             </div>
 
-            {/* 3 Líneas obligatorias del protocolo médico NASA (protocolos_medicos_nasa.md) */}
+            {/* Líneas concisas de estado y acción */}
             <div className="message-lines">
+              <div>{primaryBanner.line1.replace(/^\[ALERTA:[^\]]+\]\s*/i, "")}</div>
               <div>
-                <strong>Identificación / Diagnóstico:</strong> {primaryBanner.line1}
-                {primaryBanner.shapSummary && (
-                  <span className="mono" style={{ fontSize: "11px", opacity: 0.82 }}>
-                    {" "}
-                    · SHAP: {primaryBanner.shapSummary}
-                  </span>
-                )}
+                <strong>Acción:</strong> {primaryBanner.line2}
               </div>
-              <div>
-                <strong>Directiva 1 (V2 7045):</strong> {primaryBanner.line2}
-              </div>
-              <div>
-                <strong>Directiva 2 (Escalado / Diferido):</strong> {primaryBanner.line3}
-              </div>
+              {(primaryBanner.overallState.severity >= 2 || primaryBanner.exceedsScope) && (
+                <div>
+                  <strong>Escalado:</strong> {primaryBanner.line3}
+                </div>
+              )}
             </div>
 
-            {/* Identificación rápida por etiquetas de parámetros alterados */}
-            <div className="message-chips-row">
-              {primaryBanner.activeAlerts.length > 0 ? (
-                primaryBanner.activeAlerts.map((item) => (
+            {primaryBanner.activeAlerts.length > 0 && (
+              <div className="message-chips-row">
+                {primaryBanner.activeAlerts.map((item) => (
                   <button
                     key={item.id}
                     type="button"
@@ -432,13 +425,9 @@ export default function SummaryTab({
                     <span>·</span>
                     <span>{item.title}</span>
                   </button>
-                ))
-              ) : (
-                <span className="mono" style={{ fontSize: "11px", fontWeight: 700, color: "#065F46" }}>
-                  ✓ Todos los biomarcadores ASTROSKIN/ACTIWATCH y atmósfera de cabina dentro de banda nominal ({primaryBanner.protoRefs}).
-                </span>
-              )}
-            </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 4 RECUADROS DINÁMICOS DE VALORES PRINCIPALES */}
@@ -449,20 +438,15 @@ export default function SummaryTab({
               const value = meta.quickFormat ? meta.quickFormat(m) : meta.format(m);
               const unit = meta.quickUnit || meta.unit;
               const replacement = plan.replacements.find((r) => r.index === index);
-              const isReplacement = Boolean(replacement) || !PRIMARY_METRICS.includes(key);
               const dir = getTrendArrow(key, m);
 
               const subParts = [];
               if (key === "radiation") {
-                subParts.push(`Tasa ${m.radiation.toFixed(2)} mSv/d`);
-                subParts.push(`Día ${data.mission_day}`);
+                subParts.push(`${m.radiation.toFixed(2)} mSv/d · Día ${data.mission_day}`);
               } else if (key === "temp") {
-                subParts.push(`Central est. ${m.tempCentral.toFixed(2)} °C`);
-                subParts.push("Piel Astroskin");
+                subParts.push(`Central est. ${m.tempCentral.toFixed(1)} °C`);
               } else if (replacement) {
-                subParts.push(`Reemplaza a ${METRIC_META[replacement.from].label}`);
-              } else {
-                subParts.push("Parámetro principal");
+                subParts.push(`Sustituye a ${METRIC_META[replacement.from].label}`);
               }
 
               return (
@@ -476,58 +460,24 @@ export default function SummaryTab({
                     borderColor: state.cardBorder,
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "10px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
                       <span className="metric-icon-box">
                         <MetricIcon metricKey={key} />
                       </span>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <span
-                            className="mono"
-                            style={{
-                              width: "20px",
-                              height: "20px",
-                              borderRadius: "999px",
-                              background: "#0F172A",
-                              color: "#FFFFFF",
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              display: "inline-flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {index + 1}
-                          </span>
-                          <span
-                            className="mono"
-                            style={{
-                              fontSize: "10px",
-                              fontWeight: 800,
-                              textTransform: "uppercase",
-                              letterSpacing: "0.08em",
-                              color: "#475569",
-                            }}
-                          >
-                            {isReplacement ? "Alterado" : "Principal"}
-                          </span>
-                        </div>
-                        <h3
-                          style={{
-                            margin: "3px 0 0",
-                            fontSize: "15px",
-                            fontWeight: 800,
-                            color: "#0F172A",
-                            whiteSpace: "nowrap",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                          }}
-                        >
-                          {meta.label}
-                        </h3>
-                      </div>
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: "15px",
+                          fontWeight: 800,
+                          color: "#0F172A",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {meta.label}
+                      </h3>
                     </div>
 
                     <span
@@ -546,101 +496,88 @@ export default function SummaryTab({
                     </span>
                   </div>
 
-                  <div style={{ marginTop: "14px" }}>
-                    <div style={{ display: "flex", alignItems: "flex-end", justifyContent: "space-between", gap: "8px" }}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: "5px" }}>
-                        <span
-                          className="mono"
-                          style={{
-                            fontSize: key === "bp" ? "30px" : "36px",
-                            fontWeight: 800,
-                            color: "#0F172A",
-                            lineHeight: 1,
-                          }}
-                        >
-                          {value}
+                  <div
+                    style={{
+                      flex: 1,
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "center",
+                      marginTop: "6px",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "baseline", gap: "7px" }}>
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: key === "bp" ? "clamp(32px, 3.3vw, 44px)" : "clamp(42px, 4.2vw, 54px)",
+                          fontWeight: 800,
+                          color: "#0F172A",
+                          lineHeight: 1,
+                          letterSpacing: "-0.03em",
+                        }}
+                      >
+                        {value}
+                      </span>
+                      {dir && state.severity > 0 && (
+                        <span style={{ fontSize: "19px", fontWeight: 800, color: arrowColor(state) }}>
+                          {dir === "up" ? "↑" : "↓"}
                         </span>
-                        {dir && state.severity > 0 && (
-                          <span style={{ fontSize: "15px", fontWeight: 800, color: arrowColor(state) }}>
-                            {dir === "up" ? "↑" : "↓"}
-                          </span>
-                        )}
-                        <span style={{ fontSize: "13px", fontWeight: 700, color: "#475569" }}>{unit}</span>
-                      </div>
-                      <span style={{ fontSize: "11px", fontWeight: 700, color: "#475569" }}>Ver →</span>
+                      )}
+                      <span style={{ fontSize: "15px", fontWeight: 700, color: "#475569" }}>{unit}</span>
                     </div>
-                    <p
-                      className="mono"
-                      style={{
-                        margin: "7px 0 0",
-                        fontSize: "10.5px",
-                        color: "#475569",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {subParts.join(" · ")}
-                    </p>
+                    {subParts.length > 0 && (
+                      <p
+                        className="mono"
+                        style={{
+                          margin: "6px 0 0",
+                          fontSize: "10.5px",
+                          color: "#475569",
+                          whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
+                      >
+                        {subParts.join(" · ")}
+                      </p>
+                    )}
                   </div>
                 </button>
               );
             })}
           </div>
 
-          {/* Tira compacta de contexto de Cabina (V2 6003-6004) y Telemetría ML */}
-          <div className="cabin-context-strip">
-            <div className="cabin-chip-card">
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748B" }}>SpO₂</span>
-              <strong
-                className="mono"
-                style={{ fontSize: "13px", color: m.spo2 < 92 ? "#DC2626" : m.spo2 < 96 ? "#B45309" : "#0F172A" }}
-              >
-                {m.spo2.toFixed(1)} %
-              </strong>
-            </div>
-            <div className="cabin-chip-card">
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748B" }}>P_I O₂ Cabina</span>
-              <strong
-                className="mono"
-                style={{ fontSize: "13px", color: (cabin.pi_o2_mmhg ?? 150) < 127 ? "#DC2626" : "#0F172A" }}
-              >
-                {Number(cabin.pi_o2_mmhg ?? 150).toFixed(1)} mmHg
-              </strong>
-            </div>
-            <div className="cabin-chip-card">
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748B" }}>ppCO₂ Cabina</span>
-              <strong
-                className="mono"
-                style={{ fontSize: "13px", color: (cabin.ppco2_mmhg ?? 1.8) > 3.0 ? "#B45309" : "#0F172A" }}
-              >
-                {Number(cabin.ppco2_mmhg ?? 1.8).toFixed(2)} mmHg
-              </strong>
-            </div>
-            <div className="cabin-chip-card">
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748B" }}>Temp. Central Est.</span>
-              <strong
-                className="mono"
-                style={{ fontSize: "13px", color: m.tempCentral < 35.0 ? "#DC2626" : "#0F172A" }}
-              >
-                {m.tempCentral.toFixed(2)} °C
-              </strong>
-            </div>
-            <div className="cabin-chip-card">
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748B" }}>ECG Astroskin</span>
-              <strong
-                className="mono"
-                style={{ fontSize: "13px", color: m.ecg > 0.35 ? "#DC2626" : m.ecg > 0.15 ? "#B45309" : "#0F172A" }}
-              >
-                {m.ecg.toFixed(2)} idx
-              </strong>
-            </div>
-            <div className="cabin-chip-card">
-              <span style={{ fontSize: "10px", fontWeight: 700, color: "#64748B" }}>Latencia ML</span>
-              <strong className="mono" style={{ fontSize: "13px", color: "#065F46" }}>
-                {res.latencia_ml_ms ?? 1.5} ms
-              </strong>
-            </div>
+          {/* Tira compacta de cabina en una sola línea */}
+          <div
+            className="mono"
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: "12px",
+              padding: "9px 14px",
+              borderRadius: "12px",
+              background: "#FFFFFF",
+              border: "1px solid #E2DDD2",
+              fontSize: "11.5px",
+              color: "#475569",
+            }}
+          >
+            <span>
+              SpO₂ <strong style={{ color: m.spo2 < 92 ? "#DC2626" : "#0F172A" }}>{m.spo2.toFixed(1)}%</strong>
+            </span>
+            <span>
+              O₂ Cabina <strong style={{ color: (cabin.pi_o2_mmhg ?? 150) < 127 ? "#DC2626" : "#0F172A" }}>{Number(cabin.pi_o2_mmhg ?? 150).toFixed(0)} mmHg</strong>
+            </span>
+            <span>
+              CO₂ <strong style={{ color: (cabin.ppco2_mmhg ?? 1.8) > 3.0 ? "#B45309" : "#0F172A" }}>{Number(cabin.ppco2_mmhg ?? 1.8).toFixed(2)} mmHg</strong>
+            </span>
+            <span>
+              Temp. Central <strong style={{ color: m.tempCentral < 35.0 ? "#DC2626" : "#0F172A" }}>{m.tempCentral.toFixed(1)} °C</strong>
+            </span>
+            <span>
+              ECG <strong style={{ color: m.ecg > 0.35 ? "#DC2626" : "#0F172A" }}>{m.ecg.toFixed(2)}</strong>
+            </span>
           </div>
         </div>
       </div>

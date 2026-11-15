@@ -567,13 +567,15 @@ body {
 
 /* Replacement Box: NASA Message, Warning & Protocol System */
 .message-console-box {
+  flex: 0 0 auto;
   border-radius: 20px;
   border-width: 2.5px;
   border-style: solid;
-  padding: 14px 16px;
+  padding: 18px 20px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 12px;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
@@ -588,9 +590,9 @@ body {
 .message-lines {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 12.5px;
-  line-height: 1.45;
+  gap: 6px;
+  font-size: 16.5px;
+  line-height: 1.5;
 }
 
 .message-chips-row {
@@ -622,7 +624,7 @@ body {
   flex: 1;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 14px;
+  gap: 12px;
 }
 
 @media (max-width: 640px) {
@@ -632,16 +634,16 @@ body {
 }
 
 .big-metric-box {
-  border-width: 2.5px;
+  border-width: 2px;
   border-style: solid;
-  border-radius: 22px;
-  padding: 18px;
+  border-radius: 20px;
+  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   text-align: left;
   cursor: pointer;
-  min-height: 150px;
+  min-height: 128px;
   transition: background-color 0.22s ease, border-color 0.22s ease, transform 0.16s ease, box-shadow 0.2s ease;
 }
 
