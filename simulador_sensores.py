@@ -374,6 +374,82 @@ class SimuladorSensores:
         self._ruido_actual: dict[str, float] = dict(ESCENARIOS_OBJETIVO["nominal"]["ruido"])
         self._cabina_actual: dict[str, float] = dict(ESCENARIOS_OBJETIVO["nominal"]["cabin"])
         self._manual_overrides: dict[str, float] = {}
+        self.intervenciones_aplicadas: list[str] = []
+
+    def aplicar_intervencion(self, tipo_intervencion: str) -> str:
+        """
+        Ejecuta una decisión clínica del tripulante y actualiza el estado
+        fisiológico/ambiental objetivo para reflejar la respuesta a la contramedida.
+        """
+        self._manual_overrides.clear()
+        mensajes = {
+            "oxigeno_100": "Oxígeno suplementario al 100 % aplicado y depuración ECLSS estabilizada.",
+            "reposo_cv": "Reposo absoluto adoptado; carga operativa reducida e hidratación aplicada.",
+            "rcp_dea": "Protocolo RCP/DEA y soporte vital básico ejecutado; ritmo en estabilización.",
+            "glucosa_oral": "Administrados 15–20 g de glucosa oral de absorción rápida.",
+            "iluminacion_descanso": "Iluminación circadiana aplicada y bloque de recuperación de sueño activado.",
+            "recalentamiento": "Recalentamiento térmico progresivo y aislamiento de cabina activados.",
+            "enfriamiento_lcvg": "Prenda de enfriamiento líquido (LCVG) activada al máximo flujo.",
+            "protocolo_conductual": "Sesión breve de respiración guiada 4-6 y descarga cognitiva completada.",
+            "ecg_ecografia_bordo": "Registro de ECG 3-derivaciones y ecografía portátil capturado para expediente.",
+        }
+        if tipo_intervencion not in mensajes:
+            return "Intervención registrada."
+
+        self.intervenciones_aplicadas.append(tipo_intervencion)
+
+        if tipo_intervencion == "oxigeno_100":
+            self._objetivo_actual["spo2"] = 98.2
+            self._objetivo_actual["frec_respiratoria"] = 16.0
+            self._objetivo_actual["vol_respiratorio"] = 8.4
+            self._objetivo_actual["frec_cardiaca"] = min(self._objetivo_actual["frec_cardiaca"], 88.0)
+            self._cabina_actual["pi_o2_mmhg"] = 150.0
+            self._cabina_actual["ppco2_mmhg"] = 1.9
+        elif tipo_intervencion == "reposo_cv":
+            self._objetivo_actual["frec_cardiaca"] = 82.0
+            self._objetivo_actual["presion_sistolica"] = 121.0
+            self._objetivo_actual["anomalia_ecg"] = min(self._objetivo_actual["anomalia_ecg"], 0.12)
+            self._objetivo_actual["nivel_actividad"] = 0.25
+            self._objetivo_actual["spo2"] = max(self._objetivo_actual["spo2"], 96.5)
+        elif tipo_intervencion == "rcp_dea":
+            self._objetivo_actual["frec_cardiaca"] = 89.0
+            self._objetivo_actual["presion_sistolica"] = 114.0
+            self._objetivo_actual["anomalia_ecg"] = 0.18
+            self._objetivo_actual["spo2"] = 95.8
+            self._objetivo_actual["frec_respiratoria"] = 17.5
+            self._objetivo_actual["nivel_actividad"] = 0.15
+        elif tipo_intervencion == "glucosa_oral":
+            self._objetivo_actual["glucemia"] = 98.0
+            self._objetivo_actual["frec_cardiaca"] = min(self._objetivo_actual["frec_cardiaca"], 84.0)
+            self._objetivo_actual["estado_animo"] = max(self._objetivo_actual["estado_animo"], 6.8)
+        elif tipo_intervencion == "iluminacion_descanso":
+            self._objetivo_actual["horas_sueno"] = 8.2
+            self._objetivo_actual["eficiencia_sueno"] = 86.0
+            self._objetivo_actual["estado_animo"] = max(self._objetivo_actual["estado_animo"], 7.4)
+            self._objetivo_actual["anomalia_ecg"] = min(self._objetivo_actual["anomalia_ecg"], 0.10)
+        elif tipo_intervencion == "recalentamiento":
+            self._objetivo_actual["temp_corporal"] = 36.1
+            self._objetivo_actual["frec_cardiaca"] = 68.0
+            self._objetivo_actual["presion_sistolica"] = 112.0
+            self._objetivo_actual["frec_respiratoria"] = 14.2
+            self._cabina_actual["cabin_temp_c"] = 22.8
+        elif tipo_intervencion == "enfriamiento_lcvg":
+            self._objetivo_actual["temp_corporal"] = 36.3
+            self._objetivo_actual["frec_cardiaca"] = 82.0
+            self._objetivo_actual["presion_sistolica"] = 122.0
+            self._cabina_actual["cabin_temp_c"] = 21.5
+        elif tipo_intervencion == "protocolo_conductual":
+            self._objetivo_actual["estado_animo"] = min(9.0, max(self.valores_actuales["estado_animo"] + 1.8, 7.2))
+            self._objetivo_actual["frec_cardiaca"] = min(self._objetivo_actual["frec_cardiaca"], 78.0)
+
+        # Acelerar parcialmente la respuesta fisiológica tras la acción
+        if tipo_intervencion != "ecg_ecografia_bordo":
+            for var in FEATURE_NAMES:
+                actual = self.valores_actuales[var]
+                objetivo = self._objetivo_actual[var]
+                self.valores_actuales[var] = actual + 0.65 * (objetivo - actual)
+
+        return mensajes[tipo_intervencion]
 
     def activar_escenario(self, nombre_escenario: str, inmediato: bool = True) -> None:
         """Cambia el perfil fisiológico y ambiental objetivo."""
@@ -381,6 +457,7 @@ class SimuladorSensores:
             raise ValueError(f"Escenario desconocido: {nombre_escenario}")
         self.escenario_actual = nombre_escenario
         self._manual_overrides.clear()
+        self.intervenciones_aplicadas.clear()
         cfg = ESCENARIOS_OBJETIVO[nombre_escenario]
         self._objetivo_actual = dict(cfg["base"])
         self._ruido_actual = dict(cfg["ruido"])
