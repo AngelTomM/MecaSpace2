@@ -176,7 +176,7 @@ export default function SummaryTab({
           <div className="body-frame">
             {!imgFailed ? (
               <img
-                src="/Cuerpo%20Humano.png"
+                src="./Cuerpo%20Humano.png"
                 alt="Figura anatómica humana holográfica"
                 style={{ width: "100%", height: "100%", objectFit: "contain", userSelect: "none" }}
                 onError={() => setImgFailed(true)}

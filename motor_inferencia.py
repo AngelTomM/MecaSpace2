@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -37,7 +38,11 @@ from nasa_referencia import (
     evaluar_reglas_deterministas_criticas,
 )
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = (
+    Path(sys._MEIPASS)
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+    else Path(__file__).resolve().parent
+)
 MODEL_PATH = BASE_DIR / "modelo_xgb.json"
 PROTOCOLS_DATA_PATH = BASE_DIR / "data" / "protocolos_medicos_nasa.md"
 PROTOCOLS_ROOT_PATH = BASE_DIR / "protocolos_medicos_nasa.md"

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { handleExportDownload } from "../engine/localApi";
 import {
   METRIC_META,
   PARAM_ORDER,
@@ -638,6 +639,7 @@ export default function ParametersTab({
                 className="pill-btn dark"
                 href="/api/export"
                 download="mecaspace_store_and_forward.json"
+                onClick={handleExportDownload}
                 style={{ justifyContent: "center" }}
               >
                 📦 Paquete Store-and-Forward

@@ -11,6 +11,7 @@ from __future__ import annotations
 import hashlib
 import json
 import mimetypes
+import sys
 import threading
 import urllib.parse
 from collections import deque
@@ -29,7 +30,11 @@ from nasa_referencia import (
 )
 from simulador_sensores import ESCENARIOS_OBJETIVO, LIMITES_FISICOS, SimuladorSensores
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = (
+    Path(sys._MEIPASS)
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+    else Path(__file__).resolve().parent
+)
 FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 MODEL_PATH = BASE_DIR / "modelo_xgb.json"
 

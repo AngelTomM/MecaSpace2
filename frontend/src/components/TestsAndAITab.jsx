@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { smartFetchJson } from "../engine/localApi";
 import { evaluateIndicator, extractUiMetrics, pickHighestSeverity } from "../data/nasaProtocols";
 
 const MENTAL_QUESTIONS = [
@@ -118,12 +119,11 @@ export default function TestsAndAITab({
     setInput("");
     setLoadingChat(true);
     try {
-      const res = await fetch("/api/chat", {
+      const json = await smartFetchJson("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pregunta: q, historial: messages }),
       });
-      const json = await res.json();
       setMessages([...nextHist, { role: "assistant", content: json.respuesta, origen: json.origen }]);
     } catch {
       setMessages([

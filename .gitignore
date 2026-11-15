@@ -1,8 +1,14 @@
 # Virtual environments
 .venv/
 .venv_old/
+.venv-build/
 venv/
 ENV/
+
+# PyInstaller / Inno Setup
+build/
+dist/
+Output/
 
 # Python cache
 __pycache__/

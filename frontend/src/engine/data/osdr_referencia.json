@@ -1,0 +1,124 @@
+{
+  "generated_at_utc": "2026-11-15T03:21:16.403858+00:00",
+  "source_mode": "offline_scientific_fallback",
+  "online_studies_fetched": 0,
+  "standard": "NASA-STD-3001 Vol. 1 Rev. C & Vol. 2 Rev. E",
+  "studies": {
+    "OSD-530": {
+      "study_id": "OSD-530",
+      "title": "Inspiration4 Commercial Spaceflight Crew Biometrics and Physiological Telemetry",
+      "platform": "Astroskin / Wearable Biometric Shirt & Smart Watch",
+      "variables_cubiertas": [
+        "frec_cardiaca",
+        "frec_respiratoria",
+        "vol_respiratorio",
+        "spo2",
+        "temp_corporal",
+        "anomalia_ecg",
+        "nivel_actividad"
+      ],
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-530",
+      "fetched_online": false
+    },
+    "OSD-356": {
+      "study_id": "OSD-356",
+      "title": "Spaceflight Sleep Architecture, Circadian Desynchrony and Actigraphy Monitoring",
+      "platform": "Actiwatch Spectrum",
+      "variables_cubiertas": [
+        "eficiencia_sueno",
+        "horas_sueno",
+        "nivel_actividad",
+        "estado_animo"
+      ],
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-356",
+      "fetched_online": false
+    },
+    "OSD-479": {
+      "study_id": "OSD-479",
+      "title": "Microgravity Analog Cardiovascular Deconditioning and Autonomic Regulation",
+      "platform": "Ambulatory Blood Pressure, Metabolic & ECG Telemetry",
+      "variables_cubiertas": [
+        "presion_sistolica",
+        "frec_cardiaca",
+        "anomalia_ecg",
+        "glucemia"
+      ],
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-479",
+      "fetched_online": false
+    }
+  },
+  "baseline_distributions": {
+    "presion_sistolica": {
+      "mean": 116.5,
+      "std": 5.2,
+      "min": 75.0,
+      "max": 190.0
+    },
+    "temp_corporal": {
+      "mean": 36.25,
+      "std": 0.28,
+      "min": 33.4,
+      "max": 39.0
+    },
+    "nivel_actividad": {
+      "mean": 0.65,
+      "std": 0.35,
+      "min": 0.05,
+      "max": 4.2
+    },
+    "spo2": {
+      "mean": 98.1,
+      "std": 0.9,
+      "min": 80.0,
+      "max": 100.0
+    },
+    "frec_respiratoria": {
+      "mean": 15.0,
+      "std": 1.6,
+      "min": 6.0,
+      "max": 34.0
+    },
+    "vol_respiratorio": {
+      "mean": 8.0,
+      "std": 1.1,
+      "min": 3.0,
+      "max": 20.0
+    },
+    "frec_cardiaca": {
+      "mean": 73.0,
+      "std": 8.5,
+      "min": 34.0,
+      "max": 175.0
+    },
+    "anomalia_ecg": {
+      "mean": 0.05,
+      "std": 0.035,
+      "min": 0.0,
+      "max": 0.9
+    },
+    "eficiencia_sueno": {
+      "mean": 87.5,
+      "std": 4.5,
+      "min": 40.0,
+      "max": 99.0
+    },
+    "glucemia": {
+      "mean": 96.0,
+      "std": 12.0,
+      "min": 45.0,
+      "max": 320.0
+    },
+    "horas_sueno": {
+      "mean": 8.4,
+      "std": 0.45,
+      "min": 3.0,
+      "max": 10.5
+    },
+    "estado_animo": {
+      "mean": 8.1,
+      "std": 0.85,
+      "min": 1.0,
+      "max": 10.0
+    }
+  }
+}

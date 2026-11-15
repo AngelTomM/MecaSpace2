@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import { buildAlertSystemFeed, extractUiMetrics } from "./data/nasaProtocols";
+import { smartFetchJson } from "./engine/localApi";
 import { AhbmLogo, TabIcon } from "./components/Icons";
 import SummaryTab from "./components/SummaryTab";
 import ParametersTab from "./components/ParametersTab";
@@ -65,19 +66,17 @@ export default function App() {
   };
 
   async function apiGet(url) {
-    const res = await fetch(url);
-    const json = await res.json();
+    const json = await smartFetchJson(url);
     setData(json);
     return json;
   }
 
   async function apiPost(url, body = {}) {
-    const res = await fetch(url, {
+    const json = await smartFetchJson(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const json = await res.json();
     setData(json);
     return json;
   }

@@ -1,4 +1,5 @@
 import React from "react";
+import { handleExportDownload } from "../engine/localApi";
 
 const MATRIX_ROWS = [
   { ind: "1. Presión arterial", src: "Astroskin (est.) / manguito clínico", nasa: "V1 3004.h, Tabla E.2-2, V2 7042" },
@@ -85,6 +86,7 @@ export default function JuryTraceability({ state }) {
           <a
             href="/api/export"
             download="mecaspace_store_and_forward.json"
+            onClick={handleExportDownload}
             className="btn btn-primary"
             style={{ textDecoration: "none", justifyContent: "center", marginTop: "auto" }}
           >

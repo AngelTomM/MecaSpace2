@@ -1,4 +1,5 @@
 import React from "react";
+import { handleExportDownload } from "../engine/localApi";
 import { NASA_LEVELS, evaluateIndicator, mapBackendLevelToKey, pickHighestSeverity } from "../data/nasaProtocols";
 
 const TRACEABILITY_ROWS = [
@@ -44,6 +45,7 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
         <a
           href="/api/export"
           download="mecaspace_store_and_forward.json"
+          onClick={handleExportDownload}
           className="pill-btn dark"
         >
           📦 Descargar Store-and-Forward (JSON + SHA-256)

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { handleExportDownload } from "../engine/localApi";
 
 export default function DecisionPanel({
   lectura,
@@ -195,7 +196,7 @@ export default function DecisionPanel({
             >
               🫀 Capturar ECG / Eco
             </button>
-            <a className="btn" href="/api/export" download="mecaspace_store_and_forward.json" style={{ textDecoration: "none", justifyContent: "center" }}>
+            <a className="btn" href="/api/export" download="mecaspace_store_and_forward.json" onClick={handleExportDownload} style={{ textDecoration: "none", justifyContent: "center" }}>
               📦 Enviar a Tierra
             </a>
           </div>

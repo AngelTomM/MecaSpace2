@@ -16,6 +16,7 @@ Integra:
 from __future__ import annotations
 
 import json
+import sys
 import urllib.error
 import urllib.request
 from datetime import datetime, timezone
@@ -30,7 +31,11 @@ try:
 except ImportError:
     requests = None
 
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = (
+    Path(sys._MEIPASS)
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS")
+    else Path(__file__).resolve().parent
+)
 DATA_DIR = BASE_DIR / "data"
 THRESHOLDS_PATH = DATA_DIR / "nasa_thresholds.json"
 OSDR_CACHE_PATH = DATA_DIR / "osdr_referencia.json"
@@ -454,8 +459,13 @@ def obtener_referencias_osdr(
         "baseline_distributions": OSDR_BASELINE_STATS,
     }
 
-    with cache_path.open("w", encoding="utf-8") as f:
-        json.dump(referencia, f, indent=2, ensure_ascii=False)
+    try:
+        cache_path.parent.mkdir(parents=True, exist_ok=True)
+        with cache_path.open("w", encoding="utf-8") as f:
+            json.dump(referencia, f, indent=2, ensure_ascii=False)
+    except OSError:
+        # En instalaciones empaquetadas (ej. Program Files / _MEIPASS) el directorio puede ser de solo lectura.
+        pass
 
     return referencia
 

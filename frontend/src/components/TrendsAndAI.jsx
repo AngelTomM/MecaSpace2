@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { smartFetchJson } from "../engine/localApi";
 
 function MiniTrendChart({ title, unit, values, normRange, color }) {
   const w = 320;
@@ -60,12 +61,11 @@ export default function TrendsAndAI({ state }) {
     setInput("");
     setLoading(true);
     try {
-      const res = await fetch("/api/chat", {
+      const data = await smartFetchJson("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ pregunta: q, historial: messages }),
       });
-      const data = await res.json();
       setMessages([...nextHist, { role: "assistant", content: data.respuesta, origen: data.origen }]);
     } catch {
       setMessages([...nextHist, { role: "assistant", content: "Error de comunicación local.", origen: "Sistema" }]);
