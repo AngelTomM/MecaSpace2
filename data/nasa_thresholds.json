@@ -1,0 +1,177 @@
+{
+    "metadata": {
+        "standard": "NASA-STD-3001 Volume 2 (Human Factors, Habitability, and Environmental Health)",
+        "sensors": [
+            "Astroskin Bio-Monitor",
+            "Actiwatch Spectrum"
+        ],
+        "communication_latency_min": 30,
+        "risk_classes": {
+            "0": "Normal",
+            "1": "Preventivo",
+            "2": "Crítico"
+        }
+    },
+    "biomarkers": {
+        "presion_sistolica": {
+            "unit": "mmHg",
+            "sensor": "Astroskin",
+            "normal": [
+                105.0,
+                125.0
+            ],
+            "preventivo_bajo": [
+                90.0,
+                104.9
+            ],
+            "preventivo_alto": [
+                125.1,
+                145.0
+            ],
+            "critico_bajo": 90.0,
+            "critico_alto": 145.0
+        },
+        "temp_corporal": {
+            "unit": "°C",
+            "sensor": "Astroskin",
+            "normal": [
+                36.3,
+                37.4
+            ],
+            "preventivo_bajo": [
+                35.5,
+                36.2
+            ],
+            "preventivo_alto": [
+                37.5,
+                38.2
+            ],
+            "critico_bajo": 35.5,
+            "critico_alto": 38.2
+        },
+        "nivel_actividad": {
+            "unit": "g-force_index",
+            "sensor": "Astroskin",
+            "normal": [
+                0.1,
+                1.8
+            ],
+            "preventivo_alto": [
+                1.81,
+                3.0
+            ],
+            "critico_alto": 3.0,
+            "note": "Valores > 3.0 en reposo o cabina indican temblor, convulsión o impacto brusco."
+        },
+        "spo2": {
+            "unit": "%",
+            "sensor": "Astroskin",
+            "normal": [
+                96.0,
+                100.0
+            ],
+            "preventivo_bajo": [
+                92.0,
+                95.9
+            ],
+            "critico_bajo": 92.0
+        },
+        "frec_respiratoria": {
+            "unit": "rpm",
+            "sensor": "Astroskin",
+            "normal": [
+                12.0,
+                18.0
+            ],
+            "preventivo_bajo": [
+                9.0,
+                11.9
+            ],
+            "preventivo_alto": [
+                18.1,
+                24.0
+            ],
+            "critico_bajo": 9.0,
+            "critico_alto": 24.0
+        },
+        "vol_respiratorio": {
+            "unit": "L/min",
+            "sensor": "Astroskin",
+            "normal": [
+                6.0,
+                10.5
+            ],
+            "preventivo_bajo": [
+                4.5,
+                5.9
+            ],
+            "preventivo_alto": [
+                10.6,
+                16.0
+            ],
+            "critico_bajo": 4.5,
+            "critico_alto": 16.0
+        },
+        "frec_cardiaca": {
+            "unit": "lpm",
+            "sensor": "Astroskin",
+            "normal": [
+                55.0,
+                95.0
+            ],
+            "preventivo_bajo": [
+                45.0,
+                54.9
+            ],
+            "preventivo_alto": [
+                95.1,
+                130.0
+            ],
+            "critico_bajo": 45.0,
+            "critico_alto": 130.0
+        },
+        "anomalia_ecg": {
+            "unit": "index_0_to_1",
+            "sensor": "Astroskin",
+            "normal": [
+                0.0,
+                0.15
+            ],
+            "preventivo_alto": [
+                0.16,
+                0.35
+            ],
+            "critico_alto": 0.35
+        },
+        "eficiencia_sueno": {
+            "unit": "%",
+            "sensor": "Actiwatch",
+            "normal": [
+                80.0,
+                100.0
+            ],
+            "preventivo_bajo": [
+                65.0,
+                79.9
+            ],
+            "critico_bajo": 65.0
+        }
+    },
+    "synergistic_critical_rules": [
+        {
+            "condition": "Hipoxia Compensada",
+            "trigger": "spo2 < 95.0 AND frec_respiratoria > 20.0 AND frec_cardiaca > 110.0",
+            "assigned_class": 2
+        },
+        {
+            "condition": "Fatiga Circadiana Aguda",
+            "trigger": "eficiencia_sueno < 72.0 AND anomalia_ecg > 0.20 AND frec_cardiaca > 100.0",
+            "assigned_class": 2
+        },
+        {
+            "condition": "Estrés Térmico y Cardiovascular",
+            "trigger": "temp_corporal > 37.8 AND presion_sistolica > 135.0 AND frec_cardiaca > 115.0",
+            "assigned_class": 2
+        }
+    ]
+}

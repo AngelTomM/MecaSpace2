@@ -1,0 +1,103 @@
+{
+  "generated_at_utc": "2026-11-14T22:19:41.542343+00:00",
+  "source_mode": "offline_scientific_fallback",
+  "online_studies_fetched": 0,
+  "standard": "NASA-STD-3001 Volume 2",
+  "studies": {
+    "OSD-530": {
+      "study_id": "OSD-530",
+      "title": "Inspiration4 Commercial Spaceflight Crew Biometrics and Physiological Telemetry",
+      "platform": "Astroskin / Wearable Biometric Shirt & Smart Watch",
+      "variables_cubiertas": [
+        "frec_cardiaca",
+        "frec_respiratoria",
+        "vol_respiratorio",
+        "spo2",
+        "temp_corporal",
+        "anomalia_ecg",
+        "nivel_actividad"
+      ],
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-530",
+      "fetched_online": false
+    },
+    "OSD-356": {
+      "study_id": "OSD-356",
+      "title": "Spaceflight Sleep Architecture, Circadian Desynchrony and Actigraphy Monitoring",
+      "platform": "Actiwatch Spectrum",
+      "variables_cubiertas": [
+        "eficiencia_sueno",
+        "nivel_actividad"
+      ],
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-356",
+      "fetched_online": false
+    },
+    "OSD-479": {
+      "study_id": "OSD-479",
+      "title": "Microgravity Analog Cardiovascular Deconditioning and Autonomic Regulation",
+      "platform": "Ambulatory Blood Pressure & ECG Telemetry",
+      "variables_cubiertas": [
+        "presion_sistolica",
+        "frec_cardiaca",
+        "anomalia_ecg"
+      ],
+      "url": "https://osdr.nasa.gov/bio/repo/data/studies/OSD-479",
+      "fetched_online": false
+    }
+  },
+  "baseline_distributions": {
+    "presion_sistolica": {
+      "mean": 116.5,
+      "std": 5.2,
+      "min": 80.0,
+      "max": 175.0
+    },
+    "temp_corporal": {
+      "mean": 36.85,
+      "std": 0.28,
+      "min": 34.8,
+      "max": 39.5
+    },
+    "nivel_actividad": {
+      "mean": 0.65,
+      "std": 0.35,
+      "min": 0.05,
+      "max": 4.2
+    },
+    "spo2": {
+      "mean": 98.1,
+      "std": 0.9,
+      "min": 82.0,
+      "max": 100.0
+    },
+    "frec_respiratoria": {
+      "mean": 15.0,
+      "std": 1.6,
+      "min": 6.0,
+      "max": 32.0
+    },
+    "vol_respiratorio": {
+      "mean": 8.0,
+      "std": 1.1,
+      "min": 3.0,
+      "max": 20.0
+    },
+    "frec_cardiaca": {
+      "mean": 73.0,
+      "std": 8.5,
+      "min": 38.0,
+      "max": 165.0
+    },
+    "anomalia_ecg": {
+      "mean": 0.05,
+      "std": 0.035,
+      "min": 0.0,
+      "max": 0.85
+    },
+    "eficiencia_sueno": {
+      "mean": 87.5,
+      "std": 4.5,
+      "min": 45.0,
+      "max": 99.0
+    }
+  }
+}
