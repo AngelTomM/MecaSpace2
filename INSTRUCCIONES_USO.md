@@ -1,42 +1,58 @@
 # MecaSpace — Guía Rápida de Uso (Tránsito a Marte)
 
-Sistema autónomo offline de monitorización biomédica y triaje clínico para misiones en **tránsito a Marte** (> 30/60 días en microgravedad) sin evacuación posible (`V1 3007`) y con **hasta 20 minutos de latencia por sentido** (~40 min ida y vuelta, `V2 10083`).
+Sistema autónomo fuera de línea de monitorización biomédica y triaje clínico para misiones en **tránsito a Marte** (> 30/60 días en microgravedad), sin evacuación posible (`V1 3007`) y con hasta 20 minutos de latencia por sentido (~40 min ida y vuelta, `V2 10083`).
 
 ---
 
-## Arranque Rápido (Consola Web React + Backend Python 100 % Offline)
+## Arranque Rápido (Consola Web React + Backend Python Offline)
 
-Ejecuta el servidor local integrado (sirve la API biomédica y el frontend compilado en React en un solo comando):
+1. Posicionarse en la raíz del repositorio (`c:\Users\ulica\Documents\GitHub\MecaSpace3`) e iniciar el servidor local integrado (`server.py`), que sirve la API biomédica y la compilación de producción de React (`frontend/dist/`):
 
 ```powershell
-.venv\Scripts\python.exe server.py
+c:\Users\ulica\Documents\GitHub\MecaSpace2\.venv\Scripts\python.exe server.py
 ```
 
-Luego abre en el navegador: **http://127.0.0.1:8000**
+*(Si se utiliza un entorno virtual local dentro de `MecaSpace3`, activar o invocar `.venv\Scripts\python.exe server.py`.)*
 
-*(Modo alternativo heredado en Streamlit: `.venv\Scripts\streamlit.exe run app.py`)*
+2. Abrir en el navegador web local: **http://127.0.0.1:8000**
+
+*(Modo alternativo heredado en Streamlit: `streamlit run app.py`.)*
 
 ---
 
-## Cómo Funciona (Flujo Integrado)
+## Estructura y Flujo de la Interfaz
 
-1. **Explorador Anatómico y 6 Indicadores (`Triaje y Acción`):**
-   - Figura humana SVG interactiva con 5 zonas clicables (`Neuro/Sueño-Ánimo`, `Corazón`, `Pulmones`, `Glucemia`, `Piel/Térmico`) coloreadas en tiempo real según `NASA-STD-3001 Vol. 2 Rev. E` (`Tabla F.5-1`).
-   - Muestra los 6 indicadores centrales (`Presión Arterial`, `Frecuencia Cardíaca`, `Glucemia`, `Temperatura Cutánea vs. Central Estimada`, `Horas de Sueño` y `Estado de Ánimo`) y contexto de cabina (`SpO₂`, `P_I O₂`, `ppCO₂`).
-2. **Capa Determinista Previa + XGBoost + SHAP (`motor_inferencia.py`):**
-   - Intercepta cuadros agudos (`temp_central_est < 35 °C`, `SpO₂ < 90 %`, bradicardia/taquicardia extrema, hipoglucemia `< 54 mg/dL`, fallo atmosférico o emergencia manual `V2 10178`) en milisegundos (`≤ 1,0 s`, `Tabla 10.2-1`).
-   - Despliega el árbol de decisión interactivo con acciones ejecutables (`RCP/DEA`, `O₂ 100 %`, `Glucosa oral`, `Recalentamiento`, `Enfriamiento LCVG`, `ECG/Ecografía a bordo`) que estabilizan la telemetría simulada y registran bitácora.
-3. **Asistente IA Local y Trazabilidad (`Tendencias e IA` / `Trazabilidad NASA`):**
-   - Gráficos temporales con bandas nominales, chat conectado a `LM Studio` (`http://localhost:1234/v1`) con respaldo offline determinista, nota conductual privada (`V1 3004.q`, `V1 6010`) y exportación JSON *store-and-forward* verificada por SHA-256 (`V1 6002`).
+La consola se organiza en cuatro vistas principales accesibles desde la barra lateral y un dock inferior de control de simulación, rutina diaria y escenarios de prueba:
 
-> **Si necesitas regenerar datos o reentrenar el modelo:**
-> ```powershell
-> .venv\Scripts\python.exe nasa_referencia.py
-> .venv\Scripts\python.exe generador_datos.py
-> .venv\Scripts\python.exe entrenar_modelo.py
-> ```
+1. **Resumen (`SummaryTab.jsx`):**
+   - Muestra el estado general del tripulante activo mediante codificación de 5 niveles de severidad (`NASA-STD-3001 Vol. 2 Rev. E`, `Tabla F.5-1`) más el estado cian *stale* para mediciones manuales obsoletas (`V2 10020`), destello de emergencia a 3 Hz y alertas sonoras duales mediante Web Audio (`V2 10176`).
+   - Presenta cuatro tarjetas de métricas prioritarias asignadas dinámicamente (`getQuickMetricPlan`) y un panel interactivo de avisos y protocolos (`PROTO-*`) con parámetro afectado, umbral normativo, estado de alcance médico y acción inmediata recomendada.
+   - Incluye el disparador de emergencia manual (`SOS Torácico`, `V2 10178`) con protocolo autónomo a bordo (evaluación CMO, ECG, ecografía y registro diferido *store-and-forward*, sin enlaces médicos en tiempo real con Tierra).
 
-> **Si modificas el frontend React (`frontend/src/`):**
-> ```powershell
-> npm --prefix frontend run build
-> ```
+2. **Parámetros (`ParametersTab.jsx`):**
+   - Permite ajustar manualmente 8 parámetros fisiológicos y ambientales (`POST /api/adjust`), avanzar el día de tránsito y consultar la explicabilidad SHAP Top-3 del modelo (`motor_inferencia.py`).
+   - Incorpora filtro e inhibición individual de avisos (`V2 10156`, `POST /api/inhibit`), contramedidas ejecutables (`POST /api/intervention`) y módulo de respiración guiada 4-4-6.
+
+3. **Tests (`TestsAndAITab.jsx`):**
+   - Integra el cuestionario psicológico sincronizado con `/api/manual`, la prueba de vigilancia psicomotora PVT (`PvtModal.jsx`), seis gráficos de tendencias temporales en SVG, el chat médico local (`/api/chat`) y la nota conductual privada PPC (`V1 3004.q`, `V1 6010`).
+
+4. **Tripulación (`CrewAndTraceabilityTab.jsx`):**
+   - Gestiona de forma independiente los tres perfiles de tripulación (`koch`, `glover`, `kim` mediante `POST /api/crew`), descargos científicos, trazabilidad normativa `NASA-STD-3001`, bitácora de eventos y exportación JSON *store-and-forward* verificada con SHA-256 (`/api/export`, `V1 6002`).
+
+---
+
+## Mantenimiento y Compilación
+
+Para regenerar el conjunto de datos o reentrenar el modelo XGBoost (`modelo_xgb.json`):
+
+```powershell
+python nasa_referencia.py
+python generador_datos.py
+python entrenar_modelo.py
+```
+
+Si se realizan cambios en el código fuente del frontend (`frontend/src/`), recompilar los archivos estáticos en `frontend/dist/` antes de iniciar el servidor:
+
+```powershell
+npm --prefix frontend run build
+```

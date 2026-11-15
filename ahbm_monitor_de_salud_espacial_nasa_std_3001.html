@@ -1,0 +1,2124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AHBM v2 — Monitor de Salud Espacial (NASA-STD-3001)</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Tipografías limpias de alta legibilidad: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          }
+        }
+      }
+    };
+  </script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: radial-gradient(circle at 20% 10%, #EAE6DC 0%, #F4F1EA 55%, #FAF7F2 100%);
+      color: #0F172A;
+      min-height: 100vh;
+    }
+
+    /* Contenedor tipo tablet aeroespacial */
+    .tablet-shell {
+      background-color: #FAF7F2;
+      border-radius: 28px;
+      border: 1.5px solid #DFD8CA;
+      box-shadow: 0 24px 60px -16px rgba(15, 23, 42, 0.14);
+    }
+
+    /* Zona izquierda oscura del cuerpo humano holográfico */
+    .human-stage {
+      background-color: #0F172A;
+      background-image:
+        linear-gradient(to right, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(56, 189, 248, 0.05) 1px, transparent 1px),
+        radial-gradient(circle at 50% 45%, rgba(14, 165, 233, 0.16) 0%, rgba(15, 23, 42, 0.98) 74%);
+      background-size: 24px 24px, 24px 24px, 100% 100%;
+      border-radius: 24px;
+      border: 1.5px solid rgba(148, 163, 184, 0.2);
+      box-shadow: 0 18px 36px -14px rgba(15, 23, 42, 0.45);
+    }
+
+    /* Recuadros grandes y marcados (8 en total: 7 biométricos + 1 PVT) */
+    .big-metric-box {
+      border-width: 2.5px;
+      border-style: solid;
+      border-radius: 22px;
+      transition: background-color 0.22s ease, border-color 0.22s ease, transform 0.16s ease, box-shadow 0.2s ease;
+    }
+
+    .big-metric-box:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 24px -8px rgba(15, 23, 42, 0.09);
+    }
+
+    /* Parpadeo oficial NASA-STD-3001 Emergency a 3 Hz (ciclo 0.333s) */
+    @keyframes nasaEmergency3Hz {
+      0%, 49% {
+        background-color: #DC2626;
+        border-color: #FCA5A5;
+        color: #FFFFFF;
+      }
+      50%, 100% {
+        background-color: #7F1D1D;
+        border-color: #DC2626;
+        color: #FFFFFF;
+      }
+    }
+
+    .nasa-emergency-blink {
+      animation: nasaEmergency3Hz 0.333s infinite steps(1, end);
+    }
+
+    /* Resalte suave al tocar zona anatómica */
+    @keyframes pulseCardRing {
+      0% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0.55); }
+      75% { box-shadow: 0 0 0 9px rgba(14, 165, 233, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(14, 165, 233, 0); }
+    }
+
+    .card-highlight-pulse {
+      animation: pulseCardRing 0.75s ease-out 2;
+    }
+
+    /* Orbe de respiración guiada 4-4-6 */
+    .breathing-orb {
+      transition: transform 1s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.7s ease, border-color 0.7s ease;
+    }
+
+    /* Scrollbar minimalista */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 999px; }
+  </style>
+</head>
+<body class="p-2.5 sm:p-4 lg:p-6 flex items-center justify-center">
+
+  <!-- Toast discreto (sin alert/confirm) -->
+  <div id="toast-pill" class="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 hidden px-4 py-2.5 rounded-2xl bg-[#0F172A] text-white text-xs font-bold shadow-xl border border-white/15 flex items-center gap-2.5">
+    <span id="toast-dot" class="w-2.5 h-2.5 rounded-full bg-[#10B981]"></span>
+    <span id="toast-msg">Actualizado</span>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- CONTENEDOR PRINCIPAL TIPO TABLET AEROESPACIAL                         -->
+  <!-- ===================================================================== -->
+  <div class="tablet-shell w-full max-w-[1440px] min-h-[780px] flex flex-col lg:flex-row overflow-hidden">
+
+    <!-- =================================================================== -->
+    <!-- BARRA LATERAL IZQUIERDA BLANCA (#FFFFFF, 76PX DE ANCHO)             -->
+    <!-- =================================================================== -->
+    <aside class="bg-white lg:w-[76px] shrink-0 border-b lg:border-b-0 lg:border-r border-[#E5DFD3] px-3 py-2.5 lg:py-6 flex lg:flex-col items-center justify-between gap-2 z-20">
+      
+      <!-- Emblema AHBM -->
+      <button onclick="switchTab(1)" title="AHBM — Monitor de Salud Espacial" class="flex flex-col items-center gap-1 focus:outline-none">
+        <div class="w-11 h-11 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center">
+          <svg width="26" height="26" viewBox="0 0 36 36" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="6" y="13" width="16" height="16" rx="5" transform="rotate(-15 6 13)" stroke="#D4943A" stroke-width="2.6"/>
+            <rect x="13" y="7" width="16" height="16" rx="5" transform="rotate(15 13 7)" stroke="#D4943A" stroke-width="2.6"/>
+            <circle cx="18" cy="18" r="2.8" fill="#D4943A"/>
+          </svg>
+        </div>
+        <span class="text-[9px] font-extrabold tracking-widest text-[#B45309]">AHBM</span>
+      </button>
+
+      <!-- 4 Pestañas de Navegación -->
+      <nav class="flex lg:flex-col items-center gap-2" aria-label="Navegación principal">
+        <button onclick="switchTab(1)" id="nav-tab-1" class="w-[62px] h-[58px] rounded-2xl flex flex-col items-center justify-center gap-1 bg-[#1E293B] text-white shadow-sm transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <rect x="3" y="3" width="7" height="7" rx="1.8"/>
+            <rect x="14" y="3" width="7" height="7" rx="1.8"/>
+            <rect x="3" y="14" width="7" height="7" rx="1.8"/>
+            <rect x="14" y="14" width="7" height="7" rx="1.8"/>
+          </svg>
+          <span class="text-[9px] font-bold leading-none">Resumen</span>
+        </button>
+
+        <button onclick="switchTab(2)" id="nav-tab-2" class="w-[62px] h-[58px] rounded-2xl flex flex-col items-center justify-center gap-1 text-[#475569] hover:text-[#0F172A] hover:bg-[#FAF7F2] transition-all relative">
+          <span id="nav-alert-dot" class="hidden w-2 h-2 rounded-full bg-[#EF4444] absolute top-2 right-2.5"></span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" d="M4 6h5m4 0h7M4 12h9m4 0h3M4 18h2m4 0h10"/>
+            <circle cx="11" cy="6" r="2"/>
+            <circle cx="15" cy="12" r="2"/>
+            <circle cx="8" cy="18" r="2"/>
+          </svg>
+          <span class="text-[9px] font-bold leading-none">Parámetros</span>
+        </button>
+
+        <button onclick="switchTab(3)" id="nav-tab-3" class="w-[62px] h-[58px] rounded-2xl flex flex-col items-center justify-center gap-1 text-[#475569] hover:text-[#0F172A] hover:bg-[#FAF7F2] transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <rect x="5" y="3" width="14" height="18" rx="2.5"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 3v3h6V3M8 12l2.5 2.5L16 9"/>
+          </svg>
+          <span class="text-[9px] font-bold leading-none">Tests</span>
+        </button>
+
+        <button onclick="switchTab(4)" id="nav-tab-4" class="w-[62px] h-[58px] rounded-2xl flex flex-col items-center justify-center gap-1 text-[#475569] hover:text-[#0F172A] hover:bg-[#FAF7F2] transition-all">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="text-[9px] font-bold leading-none">Tripulación</span>
+        </button>
+      </nav>
+
+      <!-- Referencia normativa discreta -->
+      <div class="hidden lg:flex flex-col items-center text-center">
+        <span class="text-[8px] font-mono font-bold text-[#64748B]">NASA</span>
+        <span class="text-[9px] font-mono font-extrabold text-[#0F172A]">3001</span>
+      </div>
+
+    </aside>
+
+    <!-- =================================================================== -->
+    <!-- ÁREA PRINCIPAL EN TONO CREMA CÁLIDO (#FAF7F2)                       -->
+    <!-- =================================================================== -->
+    <main class="flex-1 flex flex-col bg-[#FAF7F2] overflow-hidden">
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 1: RESUMEN PRINCIPAL (DISEÑO LIMPIO Y ESPACIOSO)          -->
+      <!-- ================================================================= -->
+      <section id="screen-1" class="flex-1 p-5 sm:p-6 lg:p-7 flex flex-col gap-5 overflow-y-auto">
+        
+        <!-- CABECERA LIMPIA -->
+        <header class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 class="text-2xl sm:text-[26px] font-extrabold text-[#0F172A] tracking-tight">
+              Resumen de Salud
+            </h1>
+            <p class="text-xs text-[#475569] mt-0.5">
+              Guía rápida · los parámetros alterados reemplazan los valores base desde el 4.º lugar.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2.5">
+            <!-- Selector desplegable limpio de astronauta -->
+            <div class="relative inline-flex items-center">
+              <span id="header-astro-dot" class="w-2.5 h-2.5 rounded-full bg-[#10B981] absolute left-3.5 pointer-events-none"></span>
+              <select
+                id="astronaut-selector"
+                onchange="setActiveAstronaut(this.value)"
+                aria-label="Seleccionar astronauta"
+                class="appearance-none bg-white hover:bg-slate-50 text-[#0F172A] font-bold text-xs sm:text-sm pl-8 pr-9 py-2.5 rounded-xl border border-[#D6CFC2] focus:border-[#0F172A] cursor-pointer outline-none transition"
+              >
+                <option value="koch">Esp. Christina Koch</option>
+                <option value="glover">Cmdte. Victor Glover</option>
+                <option value="kim">Dr. Jonny Kim</option>
+              </select>
+              <svg class="w-4 h-4 text-[#475569] absolute right-3 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2.4" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </div>
+
+            <!-- Indicador discreto del estado general -->
+            <span id="header-overall-pill" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#ECFDF5] text-[#065F46] border border-[#10B981]">
+              ✓ NOMINAL
+            </span>
+
+            <!-- Botón compacto SOS Torácico (V2 10178) -->
+            <button
+              onclick="toggleThoracicEmergency()"
+              id="sos-thoracic-btn"
+              title="Disparador de emergencia independiente V2 10178"
+              class="px-3.5 py-2 rounded-xl bg-[#DC2626] hover:bg-red-700 text-white text-xs font-extrabold tracking-wide shadow-xs transition flex items-center gap-1.5"
+            >
+              <span>⚡</span>
+              <span>SOS Torácico</span>
+            </button>
+          </div>
+        </header>
+
+        <!-- =============================================================== -->
+        <!-- DOS ZONAS PRINCIPALES: IZQ 38% (CUERPO) + DER 62% (4 VALORES) -->
+        <!-- =============================================================== -->
+        <div class="flex-1 flex flex-col lg:flex-row gap-6 items-stretch">
+
+          <!-- ============================================================= -->
+          <!-- ZONA IZQUIERDA (38%): RECUADRO OSCURO DEL CUERPO HUMANO       -->
+          <!-- ============================================================= -->
+          <div class="w-full lg:w-[38%] shrink-0 human-stage p-5 flex flex-col justify-between relative min-h-[480px]">
+            
+            <!-- Nombre del astronauta activo -->
+            <div class="flex items-center justify-between gap-2">
+              <span id="body-crew-name" class="text-sm font-extrabold text-white tracking-tight">
+                Esp. Christina Koch
+              </span>
+              <span id="body-crew-blood" class="px-2.5 py-0.5 rounded-lg bg-slate-800 border border-slate-700 text-[11px] font-mono font-bold text-sky-300">
+                O+
+              </span>
+            </div>
+
+            <!-- Figura anatómica humana holográfica en azul luminoso -->
+            <div class="flex-1 flex items-center justify-center my-3 relative">
+              <div class="relative w-full max-w-[330px] aspect-[2/3] rounded-2xl overflow-hidden bg-[#091122] border border-sky-400/20 flex items-center justify-center">
+                
+                <!-- Imagen Cuerpo Humano.png con fallback automático a SVG anatómico azul luminoso -->
+                <img
+                  id="human-body-img"
+                  src="./Cuerpo%20Humano.png"
+                  alt="Figura anatómica humana holográfica"
+                  class="w-full h-full object-contain object-center select-none"
+                  onerror="this.style.display='none'; document.getElementById('human-body-svg').classList.remove('hidden');"
+                />
+
+                <!-- Fallback SVG anatómico azul luminoso de alta calidad -->
+                <svg id="human-body-svg" class="hidden w-full h-full p-4" viewBox="0 0 240 360" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <defs>
+                    <radialGradient id="holoBodyGrad" cx="50%" cy="42%" r="58%">
+                      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.72"/>
+                      <stop offset="65%" stop-color="#0284C7" stop-opacity="0.32"/>
+                      <stop offset="100%" stop-color="#091122" stop-opacity="0.05"/>
+                    </radialGradient>
+                    <filter id="holoGlow" x="-20%" y="-20%" width="140%" height="140%">
+                      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+                      <feMerge>
+                        <feMergeNode in="blur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                      </feMerge>
+                    </filter>
+                  </defs>
+
+                  <g filter="url(#holoGlow)" stroke="#38BDF8" stroke-width="1.5" fill="url(#holoBodyGrad)">
+                    <!-- Cabeza y cuello -->
+                    <ellipse cx="120" cy="36" rx="18" ry="22"/>
+                    <path d="M111 57 L129 57 L133 70 L107 70 Z"/>
+                    <!-- Torso -->
+                    <path d="M82 75 C96 67, 144 67, 158 75 L168 112 L154 184 L86 184 L72 112 Z"/>
+                    <!-- Brazos -->
+                    <path d="M80 78 L54 140 L44 190 L56 193 L68 146 L84 102 Z"/>
+                    <path d="M160 78 L186 140 L196 190 L184 193 L172 146 L156 102 Z"/>
+                    <!-- Piernas -->
+                    <path d="M88 184 L117 184 L113 336 L92 336 Z"/>
+                    <path d="M123 184 L152 184 L148 336 L127 336 Z"/>
+                  </g>
+
+                  <!-- Líneas internas sutiles de escaneo anatómico -->
+                  <g stroke="#7DD3FC" stroke-opacity="0.35" stroke-width="1" stroke-dasharray="3 3">
+                    <line x1="120" y1="20" x2="120" y2="330"/>
+                    <ellipse cx="120" cy="112" rx="28" ry="18"/>
+                    <ellipse cx="120" cy="156" rx="24" ry="14"/>
+                  </g>
+                </svg>
+
+                <!-- 3 PUNTOS INTERACTIVOS SUAVES (CABEZA, TÓRAX, ABDOMEN) -->
+                <button
+                  type="button"
+                  onclick="selectAnatomicalZone('head')"
+                  aria-label="Zona Cabeza"
+                  style="top: 10%; left: 50%;"
+                  class="absolute -translate-x-1/2 -translate-y-1/2 w-12 h-12 flex items-center justify-center group focus:outline-none z-20"
+                >
+                  <span id="hotspot-halo-head" class="w-9 h-9 rounded-full border-2 border-[#10B981] bg-[#10B981]/20 transition-all group-hover:scale-110"></span>
+                  <span id="hotspot-core-head" class="w-3 h-3 rounded-full bg-[#10B981] border-2 border-white absolute"></span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick="selectAnatomicalZone('thorax')"
+                  aria-label="Zona Tórax"
+                  style="top: 24%; left: 50%;"
+                  class="absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center group focus:outline-none z-20"
+                >
+                  <span id="hotspot-halo-thorax" class="w-11 h-11 rounded-full border-2 border-[#10B981] bg-[#10B981]/20 transition-all group-hover:scale-110"></span>
+                  <span id="hotspot-core-thorax" class="w-3.5 h-3.5 rounded-full bg-[#10B981] border-2 border-white absolute"></span>
+                </button>
+
+                <button
+                  type="button"
+                  onclick="selectAnatomicalZone('abdomen')"
+                  aria-label="Zona Abdomen"
+                  style="top: 36%; left: 50%;"
+                  class="absolute -translate-x-1/2 -translate-y-1/2 w-14 h-14 flex items-center justify-center group focus:outline-none z-20"
+                >
+                  <span id="hotspot-halo-abdomen" class="w-10 h-10 rounded-full border-2 border-[#10B981] bg-[#10B981]/20 transition-all group-hover:scale-110"></span>
+                  <span id="hotspot-core-abdomen" class="w-3 h-3 rounded-full bg-[#10B981] border-2 border-white absolute"></span>
+                </button>
+
+                <!-- Breve Tooltip al hacer clic en un punto -->
+                <div
+                  id="zone-tooltip"
+                  class="hidden absolute bottom-3 left-3 right-3 z-30 rounded-xl bg-[#0F172A]/95 border border-sky-400/40 p-3 text-white shadow-xl backdrop-blur-xs"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span id="zone-tooltip-title" class="text-xs font-extrabold text-sky-300">Tórax</span>
+                    <button onclick="closeZoneTooltip()" class="text-slate-400 hover:text-white text-xs font-bold">✕</button>
+                  </div>
+                  <p id="zone-tooltip-text" class="text-xs font-mono text-slate-200 mt-1">
+                    118/76 mmHg · 68 bpm
+                  </p>
+                </div>
+
+              </div>
+            </div>
+
+            <!-- 3 etiquetas inferiores limpias -->
+            <div class="grid grid-cols-3 gap-2">
+              <button onclick="selectAnatomicalZone('head')" class="rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 py-2 px-2.5 flex items-center justify-center gap-1.5 transition">
+                <span id="zone-pill-dot-head" class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+                <span class="text-xs font-bold text-slate-200">Cabeza</span>
+              </button>
+              <button onclick="selectAnatomicalZone('thorax')" class="rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 py-2 px-2.5 flex items-center justify-center gap-1.5 transition">
+                <span id="zone-pill-dot-thorax" class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+                <span class="text-xs font-bold text-slate-200">Tórax</span>
+              </button>
+              <button onclick="selectAnatomicalZone('abdomen')" class="rounded-xl bg-slate-800/80 hover:bg-slate-800 border border-slate-700/80 py-2 px-2.5 flex items-center justify-center gap-1.5 transition">
+                <span id="zone-pill-dot-abdomen" class="w-2 h-2 rounded-full bg-[#10B981]"></span>
+                <span class="text-xs font-bold text-slate-200">Abdomen</span>
+              </button>
+            </div>
+
+          </div>
+
+          <!-- ============================================================= -->
+          <!-- ZONA DERECHA (62%): 4 VALORES PRINCIPALES DINÁMICOS           -->
+          <!-- ============================================================= -->
+          <div class="w-full lg:w-[62%] flex flex-col gap-4">
+
+            <!-- Recuadro de mensajes: regla de prioridad de los valores principales -->
+            <div class="rounded-2xl border-2 border-[#EAB308] bg-[#FEFCE8] p-4 text-left">
+              <div class="flex items-start gap-3">
+                <span class="w-8 h-8 rounded-full bg-[#EAB308] text-[#0F172A] font-extrabold text-xs flex items-center justify-center shrink-0 mt-0.5">!</span>
+                <div class="min-w-0">
+                  <p class="text-xs font-extrabold text-[#854D0E] leading-relaxed">
+                    <strong>Prioridad de los valores principales:</strong> Pulsaciones → Presión → Temperatura → Radiación.
+                    Si otro parámetro sale de rango, reemplaza primero el 4.º lugar, luego el 3.º y así sucesivamente hasta volver a nominal.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Los 4 recuadros se generan dinámicamente según prioridad y estado -->
+            <div id="quick-metrics-grid" class="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-4"></div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 2: TODOS LOS PARÁMETROS + AVISOS Y GUÍA (TABLET CON SCROLL INTERNO) -->
+      <!-- ================================================================= -->
+      <section id="screen-2" class="hidden p-5 sm:p-6 lg:p-7 overflow-hidden h-full">
+
+        <!-- Contenedor scrollable interno: no alarga la página, respeta tamaño tablet -->
+        <div class="h-full overflow-y-auto pr-3 lg:pr-0 scrollbar-thin scrollbar-thumb-[#CBD5E1] scrollbar-track-transparent">
+
+          <header class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E5DFD3]">
+          <div>
+            <h1 class="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+              Todos los Parámetros
+            </h1>
+            <p class="text-xs text-[#475569] mt-0.5">
+              Verificación completa NASA-STD-3001 · <strong id="params-astro-label" class="text-[#0F172A]">Esp. Christina Koch</strong>
+            </p>
+          </div>
+          <div class="flex flex-wrap items-center gap-2.5">
+            <span id="params-altered-count" class="px-3 py-2 rounded-xl text-xs font-mono font-extrabold bg-[#0F172A] text-white">0 / 8 alterados</span>
+            <span id="params-overall-pill" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#ECFDF5] text-[#065F46] border border-[#10B981]">✓ NOMINAL</span>
+          </div>
+        </header>
+
+        <!-- Grilla completa de los 8 parámetros (generada por JavaScript) -->
+        <div id="params-grid" class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4"></div>
+
+        <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+
+          <!-- Columna Izquierda (6 cols): Alertas automáticas + Filtro -->
+          <div class="xl:col-span-6 bg-white rounded-[24px] border border-[#DFD8CA] p-5 flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h2 class="text-base font-extrabold text-[#0F172A]">Avisos del Sistema</h2>
+                <p class="text-[11px] text-[#475569] mt-0.5">
+                  Generados por los 8 parámetros · <strong id="alerts-astro-label" class="text-[#0F172A]">Esp. Christina Koch</strong>
+                </p>
+              </div>
+              <span id="alerts-badge-count" class="px-2.5 py-0.5 rounded-lg bg-[#0F172A] text-white text-xs font-mono font-extrabold">0</span>
+            </div>
+
+            <div class="grid grid-cols-4 gap-1.5 bg-[#FAF7F2] p-1.5 rounded-xl border border-[#E5DFD3]">
+              <button onclick="setAlertFilter('all')" id="flt-all" class="py-1.5 rounded-lg text-xs font-extrabold bg-[#0F172A] text-white transition">Todos</button>
+              <button onclick="setAlertFilter('alert')" id="flt-alert" class="py-1.5 rounded-lg text-xs font-extrabold text-[#475569] hover:text-[#0F172A] transition">Alertas</button>
+              <button onclick="setAlertFilter('reminder')" id="flt-reminder" class="py-1.5 rounded-lg text-xs font-extrabold text-[#475569] hover:text-[#0F172A] transition">Recordat.</button>
+              <button onclick="setAlertFilter('suggestion')" id="flt-suggestion" class="py-1.5 rounded-lg text-xs font-extrabold text-[#475569] hover:text-[#0F172A] transition">Sugerenc.</button>
+            </div>
+
+            <div id="alerts-list-container" class="flex-1 space-y-2.5 overflow-y-auto max-h-[520px] pr-1"></div>
+          </div>
+
+          <!-- Columna Derecha (6 cols): Registrar síntoma + Guía + Respiración -->
+          <div class="xl:col-span-6 flex flex-col gap-4">
+
+            <div class="bg-white rounded-[24px] border border-[#DFD8CA] p-5 space-y-3">
+              <h2 class="text-base font-extrabold text-[#0F172A]">Registrar Síntoma</h2>
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <button onclick="selectSymptom('Cefalea')" id="sym-Cefalea" class="sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#0F172A] text-white text-left transition">• Cefalea</button>
+                <button onclick="selectSymptom('Fatiga visual')" id="sym-Fatiga visual" class="sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition">• Fatiga visual</button>
+                <button onclick="selectSymptom('Estrés / Tensión')" id="sym-Estrés / Tensión" class="sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition">• Estrés</button>
+                <button onclick="selectSymptom('Insomnio')" id="sym-Insomnio" class="sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition">• Insomnio</button>
+                <button onclick="selectSymptom('Mareo')" id="sym-Mareo" class="sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition">• Mareo</button>
+                <button onclick="selectSymptom('Dolor torácico')" id="sym-Dolor torácico" class="sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition">• Dolor torácico</button>
+              </div>
+
+              <div class="flex items-center gap-2">
+                <input
+                  id="symptom-free-input"
+                  type="text"
+                  oninput="onFreeSymptomInput(this.value)"
+                  placeholder="Escribir otro síntoma..."
+                  class="flex-1 px-3.5 py-2.5 rounded-xl bg-[#FAF7F2] border border-[#D6CFC2] focus:border-[#D946EF] focus:bg-white text-xs text-[#0F172A] outline-none"
+                />
+              </div>
+            </div>
+
+            <div class="flex-1 human-stage p-5 flex flex-col justify-between gap-4 text-white">
+              <div class="space-y-2.5">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-lg bg-[#D946EF] text-white text-[10px] font-mono font-extrabold uppercase">
+                    Guía Paso a Paso · Tabla F.5-2
+                  </span>
+                  <span id="guide-step-count" class="text-xs font-mono text-fuchsia-300">0 / 3</span>
+                </div>
+                <h3 id="guide-active-title" class="text-base font-extrabold text-white">Protocolo: Cefalea</h3>
+                <div id="guide-steps-list" class="space-y-2"></div>
+              </div>
+
+              <div class="rounded-2xl bg-slate-800/80 border border-slate-700 p-4 flex items-center justify-between gap-4">
+                <div class="space-y-1">
+                  <span class="text-[10px] font-mono font-bold uppercase text-emerald-400">Autorregulación</span>
+                  <h4 class="text-sm font-extrabold text-white">Respiración Guiada 4-4-6</h4>
+                  <p class="text-[11px] text-slate-300">Inhalar 4s · Sostener 4s · Exhalar 6s</p>
+                  <button onclick="toggleBreathing()" id="breath-btn" class="mt-1 px-3.5 py-1.5 rounded-xl bg-[#10B981] hover:bg-emerald-400 text-[#052E16] text-xs font-extrabold transition">
+                    Iniciar 4-4-6
+                  </button>
+                </div>
+
+                <div class="w-24 h-24 flex items-center justify-center shrink-0">
+                  <div
+                    id="breath-orb"
+                    class="breathing-orb w-[72px] h-[72px] rounded-full bg-emerald-500/25 border-2 border-emerald-400 flex flex-col items-center justify-center text-center"
+                    style="transform: scale(0.88);"
+                  >
+                    <span id="breath-phase" class="text-[11px] font-extrabold text-white leading-tight">Listo</span>
+                    <span id="breath-secs" class="text-[11px] font-mono text-emerald-300">4-4-6</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 3: TEST PSICOLÓGICO + PVT                                  -->
+      <!-- ================================================================= -->
+      <section id="screen-3" class="hidden flex-1 p-5 sm:p-6 lg:p-7 flex flex-col gap-5 overflow-y-auto">
+
+        <header class="flex flex-wrap items-center justify-between gap-3 pb-3 border-b border-[#E5DFD3]">
+          <div>
+            <h1 class="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+              Test Psicológico y PVT
+            </h1>
+            <p class="text-xs text-[#475569] mt-0.5">
+              Salud mental y vigilancia psicomotora · <strong id="tests-astro-label" class="text-[#0F172A]">Esp. Christina Koch</strong>
+            </p>
+          </div>
+          <span id="tests-header-pill" class="px-3.5 py-2 rounded-xl text-xs font-extrabold bg-[#ECFDF5] text-[#065F46] border border-[#10B981]">✓ NOMINAL</span>
+        </header>
+
+        <div class="flex-1 grid grid-cols-1 xl:grid-cols-12 gap-5 items-stretch">
+
+          <!-- Test psicológico (6 preguntas) -->
+          <div class="xl:col-span-7 bg-white rounded-[24px] border border-[#DFD8CA] p-5 sm:p-6 flex flex-col gap-5">
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-extrabold text-[#0F172A]">Test Psicológico · Rutina Diaria</h2>
+                <p class="text-xs text-[#475569] mt-0.5">
+                  Cuestionario rápido PANAS / GHQ-12 · <strong id="routine-astro-label" class="text-[#0F172A]">Esp. Christina Koch</strong>
+                </p>
+              </div>
+              <span id="routine-mood-badge" class="px-3.5 py-2 rounded-xl text-xs font-mono font-extrabold bg-[#10B981] text-white">
+                Estado de Ánimo: 91 %
+              </span>
+            </div>
+
+            <div class="flex items-center justify-between text-xs font-bold text-[#475569]">
+              <span>Selecciona del 1 (Muy bajo) al 5 (Óptimo)</span>
+              <span id="routine-count-pill" class="font-mono text-[#0F172A]">6 / 6 respondidas</span>
+            </div>
+
+            <div id="mental-questions-list" class="space-y-3"></div>
+
+            <div class="pt-3 border-t border-[#E5DFD3] flex flex-wrap items-center justify-between gap-3 mt-auto">
+              <span class="text-xs text-[#475569]">Actualiza el Estado de Ánimo en Resumen y Parámetros.</span>
+              <button onclick="confirmMentalRoutine()" class="px-5 py-2.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-extrabold transition">
+                Guardar y Ver Resumen
+              </button>
+            </div>
+          </div>
+
+          <!-- PVT + ayuda -->
+          <div class="xl:col-span-5 flex flex-col gap-4">
+
+            <div class="human-stage p-5 text-white flex flex-col gap-4">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <span class="text-[10px] font-mono font-bold uppercase tracking-widest text-sky-400">Prueba de vigilancia</span>
+                  <h2 class="text-lg font-extrabold text-white mt-0.5">Test PVT · Reflejos</h2>
+                </div>
+                <span id="tests-pvt-badge" class="px-3 py-1 rounded-xl text-xs font-extrabold bg-[#10B981] text-white shrink-0">✓ NOMINAL</span>
+              </div>
+
+              <div class="flex items-baseline gap-2">
+                <span id="tests-pvt-value" class="text-5xl font-extrabold font-mono leading-none tracking-tight">238</span>
+                <span class="text-sm font-bold text-slate-300">ms</span>
+              </div>
+
+              <p class="text-xs text-slate-300 leading-relaxed">
+                Tiempo de reacción promedio de la última sesión. El test lanza 5 estímulos visuales en intervalos aleatorios de 1.2 s a 3.2 s.
+              </p>
+
+              <div class="flex items-center justify-between text-xs font-mono bg-slate-800/70 rounded-xl px-4 py-3 border border-slate-700">
+                <span>Nominal: <strong class="text-emerald-400">&lt; 265 ms</strong></span>
+                <span id="tests-pvt-last" class="text-slate-300">Último: 238 ms</span>
+              </div>
+
+              <button onclick="openPvtModal()" class="w-full px-5 py-3 rounded-xl bg-[#10B981] hover:bg-emerald-400 text-[#052E16] text-sm font-extrabold transition">
+                Iniciar Test PVT
+              </button>
+            </div>
+
+            <div class="bg-white rounded-[24px] border border-[#DFD8CA] p-5">
+              <h3 class="text-sm font-extrabold text-[#0F172A]">¿Cómo se evalúa?</h3>
+              <ul class="mt-2 space-y-1.5 text-xs text-[#475569]">
+                <li class="flex gap-2"><span class="text-[#10B981] font-extrabold">1.</span> 5 estímulos aleatorios entre 1.2 s y 3.2 s.</li>
+                <li class="flex gap-2"><span class="text-[#10B981] font-extrabold">2.</span> Pulsar el recuadro o la barra espaciadora lo antes posible.</li>
+                <li class="flex gap-2"><span class="text-[#10B981] font-extrabold">3.</span> El promedio se guarda y actualiza el parámetro PVT.</li>
+              </ul>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================= -->
+      <!-- PESTAÑA 4: TRIPULACIÓN A BORDO (3 ASTRONAUTAS RECONOCIDOS)        -->
+      <!-- ================================================================= -->
+      <section id="screen-4" class="hidden flex-1 p-5 sm:p-6 lg:p-7 flex flex-col gap-5 overflow-y-auto">
+        
+        <header class="pb-3 border-b border-[#E5DFD3]">
+          <h1 class="text-2xl font-extrabold text-[#0F172A] tracking-tight">
+            Tripulación a Bordo
+          </h1>
+          <p class="text-xs text-[#475569] mt-0.5">
+            Selecciona un astronauta para cargar sus constantes biométricas en el Resumen Principal.
+          </p>
+        </header>
+
+        <div id="crew-cards-grid" class="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-5 items-stretch"></div>
+
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL INTERACTIVO DEL TEST PVT (5 ESTÍMULOS ALEATORIOS 1.2s A 3.2s)   -->
+  <!-- ===================================================================== -->
+  <div id="pvt-modal" class="hidden fixed inset-0 z-50 bg-[#0F172A]/80 backdrop-blur-xs flex items-center justify-center p-4">
+    <div class="w-full max-w-lg rounded-[26px] bg-[#0F172A] border-2 border-slate-700 text-white p-6 shadow-2xl space-y-5">
+      
+      <div class="flex items-center justify-between gap-2">
+        <div>
+          <span class="text-[10px] font-mono font-bold uppercase tracking-widest text-sky-400">
+            Prueba Psicomotora de Vigilancia (5 Estímulos)
+          </span>
+          <h2 id="pvt-modal-title" class="text-lg font-extrabold text-white mt-0.5">
+            Test PVT · Esp. Christina Koch
+          </h2>
+        </div>
+        <button onclick="closePvtModal()" class="w-9 h-9 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-extrabold text-sm flex items-center justify-center">
+          ✕
+        </button>
+      </div>
+
+      <p class="text-xs text-slate-300">
+        Haz clic en el recuadro o presiona <kbd class="px-1.5 py-0.5 rounded bg-white/15 text-amber-300 font-mono">Espacio</kbd> lo más rápido posible cuando se encienda el estímulo visual.
+      </p>
+
+      <!-- Zona Interactiva de Estímulo -->
+      <div
+        id="pvt-pad"
+        onclick="handlePvtPadClick()"
+        class="h-[230px] rounded-2xl bg-slate-800/90 border-2 border-slate-600 hover:border-sky-400 flex flex-col items-center justify-center p-6 cursor-pointer select-none transition"
+      >
+        <!-- Estado Inicial -->
+        <div id="pvt-state-idle" class="text-center space-y-3">
+          <div class="text-sm font-extrabold text-white">5 estímulos en intervalos aleatorios (1.2s – 3.2s)</div>
+          <button onclick="event.stopPropagation(); beginPvtSession()" class="px-5 py-2.5 rounded-xl bg-[#10B981] hover:bg-emerald-400 text-[#052E16] text-xs font-extrabold transition">
+            Comenzar Prueba
+          </button>
+        </div>
+
+        <!-- Estado Esperando Estímulo -->
+        <div id="pvt-state-wait" class="hidden text-center space-y-2.5">
+          <span class="text-xs font-extrabold uppercase tracking-wider text-slate-300">Mantente atento...</span>
+          <div class="w-12 h-12 rounded-full border-2 border-slate-500 flex items-center justify-center mx-auto">
+            <span class="w-3.5 h-3.5 rounded-full bg-sky-400 animate-ping"></span>
+          </div>
+          <span id="pvt-trial-label" class="text-xs font-mono text-slate-400">Estímulo 1 de 5</span>
+        </div>
+
+        <!-- Estado Estímulo Activo -->
+        <div id="pvt-state-go" class="hidden text-center">
+          <div class="px-9 py-5 rounded-2xl bg-[#EAB308] text-[#0F172A] shadow-xl">
+            <div class="text-xs font-extrabold uppercase tracking-wider">¡PULSA AHORA!</div>
+            <div id="pvt-live-ms" class="text-4xl font-extrabold font-mono mt-1">000 ms</div>
+          </div>
+        </div>
+
+        <!-- Estado Resultado de Intento / Final -->
+        <div id="pvt-state-feedback" class="hidden text-center space-y-2">
+          <div id="pvt-feedback-ms" class="text-4xl font-extrabold font-mono text-emerald-400">238 ms</div>
+          <div id="pvt-feedback-sub" class="text-xs text-slate-300">Estímulo registrado</div>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between text-xs font-mono bg-slate-800/70 rounded-xl px-4 py-3 border border-slate-700">
+        <span>Último registro: <strong id="pvt-modal-current" class="text-white">238 ms</strong></span>
+        <span>Nominal: <strong class="text-emerald-400">&lt; 265 ms</strong></span>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- LÓGICA DE DATOS, UMBRALES NASA-STD-3001 E INTERACTIVIDAD              -->
+  <!-- ===================================================================== -->
+  <script>
+    // =========================================================================
+    // 1. DATOS DE LOS 3 ASTRONAUTAS CON SUS ESTADOS INICIALES EXACTOS
+    // =========================================================================
+    const CREW = {
+      koch: {
+        id: 'koch',
+        name: 'Esp. Christina Koch',
+        role: 'Especialista de Misión',
+        height: '170 cm',
+        weight: '61 kg',
+        bmi: '21.1',
+        blood: 'O+',
+        skin: '#F4CBB2',
+        hair: '#6B3410',
+        thoracicEmergency: false,
+        emergencyBlinkPaused: false,
+        metrics: {
+          bpSys: 118,
+          bpDia: 76,
+          hr: 68,
+          glucose: 88,
+          temp: 36.8,
+          sleep: 8.2,
+          mood: 91,
+          radiation: 0.84,
+          radiationTotal: 156.2,
+          pvt: 238
+        }
+      },
+      glover: {
+        id: 'glover',
+        name: 'Cmdte. Victor Glover',
+        role: 'Comandante de Misión',
+        height: '183 cm',
+        weight: '86 kg',
+        bmi: '25.7',
+        blood: 'A+',
+        skin: '#8C5327',
+        hair: '#1A1A1D',
+        thoracicEmergency: false,
+        emergencyBlinkPaused: false,
+        metrics: {
+          bpSys: 135,
+          bpDia: 86,
+          hr: 96,
+          glucose: 94,
+          temp: 37.0,
+          sleep: 7.8,
+          mood: 87,
+          radiation: 1.18,
+          radiationTotal: 219.5,
+          pvt: 248
+        }
+      },
+      kim: {
+        id: 'kim',
+        name: 'Dr. Jonny Kim',
+        role: 'Médico de Vuelo / CMO',
+        height: '178 cm',
+        weight: '77 kg',
+        bmi: '24.3',
+        blood: 'B+',
+        skin: '#E6BF9E',
+        hair: '#14161B',
+        thoracicEmergency: false,
+        emergencyBlinkPaused: false,
+        metrics: {
+          bpSys: 115,
+          bpDia: 74,
+          hr: 64,
+          glucose: 86,
+          temp: 36.0,
+          sleep: 5.8,
+          mood: 82,
+          radiation: 0.92,
+          radiationTotal: 171.1,
+          pvt: 328
+        }
+      }
+    };
+
+    let activeCrewId = 'koch';
+    let currentTab = 1;
+    let emergencyBlinkTimeout = null;
+    let missionDay = 186;
+
+    // =========================================================================
+    // 2. CÓDIGO DE COLORES OFICIAL NASA-STD-3001 VOL. 2 REV. E
+    //    (Tablas 10.3-1, F.5-1, F.5-2)
+    // =========================================================================
+    const NASA_STATES = {
+      nominal: {
+        key: 'nominal',
+        severity: 0,
+        hex: '#10B981',
+        cardBg: '#ECFDF5',
+        cardBorder: '#10B981',
+        badgeClass: 'bg-[#10B981] text-white',
+        pillHeaderClass: 'bg-[#ECFDF5] text-[#065F46] border border-[#10B981]'
+      },
+      advisory: {
+        key: 'advisory',
+        severity: 1,
+        hex: '#2563EB',
+        cardBg: '#EFF6FF',
+        cardBorder: '#2563EB',
+        badgeClass: 'bg-[#2563EB] text-white',
+        pillHeaderClass: 'bg-[#EFF6FF] text-[#1E40AF] border border-[#2563EB]'
+      },
+      caution: {
+        key: 'caution',
+        severity: 2,
+        hex: '#EAB308',
+        cardBg: '#FEFCE8',
+        cardBorder: '#EAB308',
+        badgeClass: 'bg-[#EAB308] text-[#0F172A]',
+        pillHeaderClass: 'bg-[#FEFCE8] text-[#854D0E] border border-[#EAB308]'
+      },
+      warning: {
+        key: 'warning',
+        severity: 3,
+        hex: '#EF4444',
+        cardBg: '#FEF2F2',
+        cardBorder: '#EF4444',
+        badgeClass: 'bg-[#EF4444] text-white',
+        pillHeaderClass: 'bg-[#FEF2F2] text-[#991B1B] border border-[#EF4444]'
+      },
+      emergency: {
+        key: 'emergency',
+        severity: 4,
+        hex: '#DC2626',
+        cardBg: '#FEF2F2',
+        cardBorder: '#DC2626',
+        badgeClass: 'bg-[#DC2626] text-white nasa-emergency-blink',
+        badgeSolidClass: 'bg-[#DC2626] text-white',
+        pillHeaderClass: 'bg-[#DC2626] text-white border border-[#DC2626] nasa-emergency-blink'
+      }
+    };
+
+    // =========================================================================
+    // 2b. METADATOS DE LOS 8 PARÁMETROS Y PRIORIDAD DE LOS VALORES PRINCIPALES
+    // =========================================================================
+    const PARAM_ORDER = ['bp', 'hr', 'glucose', 'temp', 'sleep', 'mood', 'radiation', 'pvt'];
+    const PRIMARY_METRICS = ['hr', 'bp', 'temp', 'radiation'];
+    const SECONDARY_METRICS = ['glucose', 'sleep', 'mood', 'pvt'];
+
+    const METRIC_ICONS = {
+      bp: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>`,
+      hr: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l3-7 4 14 3-7h4"/></svg>`,
+      glucose: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2.69l5.66 5.66a8 8 0 11-11.31 0z"/></svg>`,
+      temp: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14 14.76V3.5a2.5 2.5 0 00-5 0v11.26a4.5 4.5 0 105 0z"/></svg>`,
+      sleep: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>`,
+      mood: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01"/></svg>`,
+      radiation: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.2" fill="currentColor"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>`,
+      pvt: `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>`
+    };
+
+    const METRIC_META = {
+      bp: {
+        label: 'Presión Arterial',
+        fullLabel: 'Presión Arterial',
+        unit: 'mmHg',
+        step: 5,
+        valueClass: 'text-[30px] sm:text-[34px]',
+        format: m => `${m.bpSys}/${m.bpDia}`
+      },
+      hr: {
+        label: 'Pulsaciones',
+        fullLabel: 'Frecuencia Cardíaca',
+        unit: 'bpm',
+        step: 6,
+        valueClass: 'text-[38px]',
+        format: m => `${m.hr}`
+      },
+      glucose: {
+        label: 'Azúcar en Sangre',
+        fullLabel: 'Azúcar en Sangre',
+        unit: 'mg/dL',
+        step: 8,
+        valueClass: 'text-[34px]',
+        format: m => `${m.glucose}`
+      },
+      temp: {
+        label: 'Temperatura Corporal',
+        fullLabel: 'Temperatura Corporal',
+        unit: '°C',
+        step: 0.4,
+        valueClass: 'text-[38px]',
+        format: m => m.temp.toFixed(1)
+      },
+      sleep: {
+        label: 'Horas de Sueño',
+        fullLabel: 'Horas de Sueño',
+        unit: 'h',
+        step: 0.4,
+        valueClass: 'text-[38px]',
+        format: m => m.sleep.toFixed(1)
+      },
+      mood: {
+        label: 'Estado de Ánimo',
+        fullLabel: 'Estado de Ánimo',
+        unit: '%',
+        step: null,
+        valueClass: 'text-[38px]',
+        format: m => `${m.mood}`,
+        actionLabel: 'Test',
+        action: `switchTab(3)`
+      },
+      radiation: {
+        label: 'Radiación Acumulada',
+        fullLabel: 'Radiación Ionizante',
+        unit: 'mSv/d',
+        quickUnit: 'mSv',
+        step: 0.12,
+        valueClass: 'text-[32px] sm:text-[36px]',
+        format: m => m.radiation.toFixed(2),
+        quickFormat: m => m.radiationTotal.toFixed(1)
+      },
+      pvt: {
+        label: 'Reflejos (PVT)',
+        fullLabel: 'Test PVT (Reflejos)',
+        unit: 'ms',
+        step: null,
+        valueClass: 'text-[38px]',
+        format: m => `${m.pvt}`,
+        actionLabel: 'Iniciar',
+        action: `openPvtModal()`
+      }
+    };
+
+    // -------------------------------------------------------------------------
+    // 2c. FLECHAS DE TENDENCIA (NASA-STD-3001 Vol. 2 Rev. E, F.4.3.1.d)
+    //     Flecha roja/amarilla arriba/abajo junto al valor fuera de umbral.
+    // -------------------------------------------------------------------------
+    function getTrendArrow(key, m) {
+      // Retorna 'up', 'down' o null según si el valor está alto o bajo respecto al rango nominal
+      if (key === 'hr') {
+        if (m.hr >= 94) return 'up';
+        if (m.hr <= 58) return 'down';
+      } else if (key === 'bp') {
+        if (m.bpSys >= 125) return 'up';
+        if (m.bpSys <= 104) return 'down';
+      } else if (key === 'glucose') {
+        if (m.glucose >= 110) return 'up';
+        if (m.glucose <= 70) return 'down';
+      } else if (key === 'temp') {
+        if (m.temp >= 37.3) return 'up';
+        if (m.temp <= 36.1) return 'down';
+      } else if (key === 'sleep') {
+        if (m.sleep < 7.4) return 'down';
+        if (m.sleep > 9.8) return 'up';
+      } else if (key === 'mood') {
+        if (m.mood < 80) return 'down';
+      } else if (key === 'radiation') {
+        if (m.radiation >= 0.96) return 'up';
+      } else if (key === 'pvt') {
+        if (m.pvt >= 265) return 'up';
+      }
+      return null;
+    }
+
+    function getTrendArrowColor(state) {
+      if (state.severity >= 3) return '#EF4444'; // warning/emergency = rojo
+      if (state.severity === 2) return '#EAB308'; // caution = amarillo
+      if (state.severity === 1) return '#2563EB'; // advisory = azul
+      return '#10B981';
+    }
+
+    function getMetricStates(crew) {
+      const states = {};
+      PARAM_ORDER.forEach(key => {
+        states[key] = evaluateIndicator(key, crew);
+      });
+      return states;
+    }
+
+    function metricDisplayValue(key, m, quick = false) {
+      const meta = METRIC_META[key];
+      return quick && meta.quickFormat ? meta.quickFormat(m) : meta.format(m);
+    }
+
+    function metricDisplayUnit(key, quick = false) {
+      const meta = METRIC_META[key];
+      return quick && meta.quickUnit ? meta.quickUnit : meta.unit;
+    }
+
+    function evaluateIndicator(key, crew) {
+      const m = crew.metrics;
+      let level = 'nominal';
+      let label = '✓ NOMINAL';
+
+      if (key === 'bp') {
+        if (crew.thoracicEmergency || m.bpSys >= 165 || m.bpSys <= 80) {
+          level = 'emergency'; label = '⚡ EMERGENCIA';
+        } else if (m.bpSys >= 145) {
+          level = 'warning'; label = '▲ ALERTA';
+        } else if (m.bpSys <= 88) {
+          level = 'warning'; label = '▼ ALERTA';
+        } else if (m.bpSys >= 130) {
+          level = 'caution'; label = '▲ PRECAUCIÓN';
+        } else if (m.bpSys <= 96) {
+          level = 'caution'; label = '▼ PRECAUCIÓN';
+        } else if (m.bpSys >= 125) {
+          level = 'advisory'; label = '▲ AVISO';
+        } else if (m.bpSys <= 104) {
+          level = 'advisory'; label = '▼ AVISO';
+        }
+      } else if (key === 'hr') {
+        if (crew.thoracicEmergency || m.hr >= 145 || m.hr <= 38) {
+          level = 'emergency'; label = '⚡ EMERGENCIA';
+        } else if (m.hr >= 112) {
+          level = 'warning'; label = '▲ ALERTA';
+        } else if (m.hr <= 45) {
+          level = 'warning'; label = '▼ ALERTA';
+        } else if (m.hr >= 94) {
+          level = 'caution'; label = '▲ PRECAUCIÓN';
+        } else if (m.hr <= 52) {
+          level = 'caution'; label = '▼ PRECAUCIÓN';
+        } else if (m.hr >= 88) {
+          level = 'advisory'; label = '▲ AVISO';
+        } else if (m.hr <= 58) {
+          level = 'advisory'; label = '▼ AVISO';
+        }
+      } else if (key === 'glucose') {
+        if (m.glucose >= 200 || m.glucose <= 50) {
+          level = 'emergency'; label = '⚡ EMERGENCIA';
+        } else if (m.glucose >= 150) {
+          level = 'warning'; label = '▲ ALERTA';
+        } else if (m.glucose <= 58) {
+          level = 'warning'; label = '▼ ALERTA';
+        } else if (m.glucose >= 120) {
+          level = 'caution'; label = '▲ PRECAUCIÓN';
+        } else if (m.glucose <= 65) {
+          level = 'caution'; label = '▼ PRECAUCIÓN';
+        } else if (m.glucose >= 110) {
+          level = 'advisory'; label = '▲ AVISO';
+        } else if (m.glucose <= 70) {
+          level = 'advisory'; label = '▼ AVISO';
+        }
+      } else if (key === 'temp') {
+        if (m.temp < 35.0 || m.temp >= 39.0) {
+          level = 'emergency'; label = '⚡ EMERGENCIA';
+        } else if (m.temp <= 35.3) {
+          level = 'warning'; label = '▼ ALERTA';
+        } else if (m.temp >= 38.0) {
+          level = 'warning'; label = '▲ ALERTA';
+        } else if (m.temp <= 35.7) {
+          level = 'caution'; label = '▼ PRECAUCIÓN';
+        } else if (m.temp >= 37.5) {
+          level = 'caution'; label = '▲ PRECAUCIÓN';
+        } else if (m.temp <= 36.1) {
+          level = 'advisory'; label = '▼ AVISO';
+        } else if (m.temp >= 37.3) {
+          level = 'advisory'; label = '▲ AVISO';
+        }
+      } else if (key === 'sleep') {
+        if (m.sleep < 6.0) {
+          level = 'warning'; label = '▼ ALERTA';
+        } else if (m.sleep < 6.8) {
+          level = 'caution'; label = '▼ PRECAUCIÓN';
+        } else if (m.sleep < 7.4) {
+          level = 'advisory'; label = '▼ AVISO';
+        } else if (m.sleep > 9.8) {
+          level = 'advisory'; label = '▲ AVISO';
+        }
+      } else if (key === 'mood') {
+        if (m.mood < 55) {
+          level = 'warning'; label = '▼ ALERTA';
+        } else if (m.mood < 70) {
+          level = 'caution'; label = '▼ PRECAUCIÓN';
+        } else if (m.mood < 80) {
+          level = 'advisory'; label = '▼ AVISO';
+        }
+      } else if (key === 'radiation') {
+        // Umbral NASA-STD-3001 Vol. 1 Rev. C V1 4033 < 1.3 mSv/día
+        if (m.radiation >= 2.00) {
+          level = 'emergency'; label = '⚡ EMERGENCIA';
+        } else if (m.radiation >= 1.30) {
+          level = 'warning'; label = '▲ ALERTA';
+        } else if (m.radiation >= 1.10) {
+          level = 'caution'; label = '▲ PRECAUCIÓN';
+        } else if (m.radiation >= 0.96) {
+          level = 'advisory'; label = '▲ AVISO';
+        }
+      } else if (key === 'pvt') {
+        if (m.pvt >= 380) {
+          level = 'warning'; label = '▲ ALERTA';
+        } else if (m.pvt >= 300) {
+          level = 'caution'; label = '▲ PRECAUCIÓN';
+        } else if (m.pvt >= 265) {
+          level = 'advisory'; label = '▲ AVISO';
+        }
+      }
+
+      const st = { ...NASA_STATES[level], label };
+      if (level === 'emergency' && crew.emergencyBlinkPaused) {
+        st.badgeClass = st.badgeSolidClass;
+      }
+      return st;
+    }
+
+    function pickHighestSeverity(list) {
+      return list.reduce((acc, cur) => (cur.severity > acc.severity ? cur : acc), list[0]);
+    }
+
+    // =========================================================================
+    // 3. NOTIFICACIONES TOAST Y EMERGENCIA TORÁCICA (V2 10178)
+    // =========================================================================
+    let toastTimer = null;
+    function showToast(text, dotColor = '#10B981') {
+      const pill = document.getElementById('toast-pill');
+      document.getElementById('toast-dot').style.backgroundColor = dotColor;
+      document.getElementById('toast-msg').textContent = text;
+      pill.classList.remove('hidden');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => pill.classList.add('hidden'), 2600);
+    }
+
+    function toggleThoracicEmergency() {
+      const crew = CREW[activeCrewId];
+      crew.thoracicEmergency = !crew.thoracicEmergency;
+      crew.emergencyBlinkPaused = false;
+      clearTimeout(emergencyBlinkTimeout);
+
+      const btn = document.getElementById('sos-thoracic-btn');
+      if (crew.thoracicEmergency) {
+        crew.metrics.bpSys = 172;
+        crew.metrics.bpDia = 104;
+        crew.metrics.hr = 148;
+        btn.classList.add('nasa-emergency-blink');
+        showToast('⚡ EMERGENCIA V2 10178: Evento torácico activo', '#DC2626');
+        // Opción de detener parpadeo tras 10s manteniendo estado rojo
+        emergencyBlinkTimeout = setTimeout(() => {
+          crew.emergencyBlinkPaused = true;
+          btn.classList.remove('nasa-emergency-blink');
+          renderAll();
+        }, 10000);
+      } else {
+        btn.classList.remove('nasa-emergency-blink');
+        if (crew.id === 'koch') { crew.metrics.bpSys = 118; crew.metrics.bpDia = 76; crew.metrics.hr = 68; }
+        if (crew.id === 'glover') { crew.metrics.bpSys = 135; crew.metrics.bpDia = 86; crew.metrics.hr = 96; }
+        if (crew.id === 'kim') { crew.metrics.bpSys = 115; crew.metrics.bpDia = 74; crew.metrics.hr = 64; }
+        showToast('SOS Torácico desactivado', '#10B981');
+      }
+      renderAll();
+    }
+
+    // =========================================================================
+    // 4. RENDERIZADO DE PESTAÑA 1 (CUERPO + 4 VALORES DINÁMICOS)
+    //    Y PESTAÑA 2 (LOS 8 PARÁMETROS COMPLETOS)
+    // =========================================================================
+    function renderSummaryTab() {
+      const crew = CREW[activeCrewId];
+      const states = getMetricStates(crew);
+
+      document.getElementById('astronaut-selector').value = activeCrewId;
+      document.getElementById('body-crew-name').textContent = crew.name;
+      document.getElementById('body-crew-blood').textContent = crew.blood;
+
+      const sosBtn = document.getElementById('sos-thoracic-btn');
+      sosBtn.classList.toggle('nasa-emergency-blink', crew.thoracicEmergency && !crew.emergencyBlinkPaused);
+
+      renderQuickMetrics(crew, states);
+
+      // Actualizar los 3 puntos anatómicos interactivos
+      const stHead = pickHighestSeverity([states.sleep, states.mood, states.pvt]);
+      const stThorax = pickHighestSeverity([states.bp, states.hr]);
+      const stAbdomen = pickHighestSeverity([states.glucose, states.temp, states.radiation]);
+
+      paintHotspot('head', stHead);
+      paintHotspot('thorax', stThorax);
+      paintHotspot('abdomen', stAbdomen);
+
+      // Estado general en cabecera
+      const overall = pickHighestSeverity(PARAM_ORDER.map(key => states[key]));
+      document.getElementById('header-astro-dot').style.backgroundColor = overall.hex;
+
+      const overallPill = document.getElementById('header-overall-pill');
+      overallPill.className = `px-3.5 py-2 rounded-xl text-xs font-extrabold ${overall.pillHeaderClass}`;
+      overallPill.textContent = overall.label;
+
+      // Indicador discreto de alerta en navegación lateral
+      const hasAlerts = PARAM_ORDER.some(key => states[key].severity > 0);
+      document.getElementById('nav-alert-dot').classList.toggle('hidden', !hasAlerts);
+    }
+
+    // -------------------------------------------------------------------------
+    // 4a. LÓGICA DE LOS 4 VALORES PRINCIPALES
+    //     Base: Pulsaciones → Presión → Temperatura → Radiación.
+    //     Cada parámetro alterado de los secundarios reemplaza el último lugar
+    //     nominal disponible (4.º, luego 3.º, luego 2.º, luego 1.º).
+    // -------------------------------------------------------------------------
+    function getQuickMetricPlan(crew) {
+      const slots = [...PRIMARY_METRICS];
+      const abnormalOthers = SECONDARY_METRICS
+        .map(key => ({ key, state: evaluateIndicator(key, crew) }))
+        .filter(item => item.state.severity > 0)
+        .sort((a, b) => b.state.severity - a.state.severity || SECONDARY_METRICS.indexOf(a.key) - SECONDARY_METRICS.indexOf(b.key));
+
+      const replacements = [];
+      abnormalOthers.forEach(item => {
+        let target = -1;
+        for (let i = slots.length - 1; i >= 0; i--) {
+          const current = slots[i];
+          if (!PRIMARY_METRICS.includes(current)) continue;
+          if (evaluateIndicator(current, crew).severity > 0) continue;
+          target = i;
+          break;
+        }
+        if (target >= 0) {
+          replacements.push({ from: slots[target], to: item.key, index: target });
+          slots[target] = item.key;
+        }
+      });
+
+      const hidden = abnormalOthers
+        .filter(item => !slots.includes(item.key))
+        .map(item => item.key);
+
+      return { slots, replacements, hidden, abnormalOthers };
+    }
+
+    function renderQuickMetrics(crew, states) {
+      const plan = getQuickMetricPlan(crew);
+      const grid = document.getElementById('quick-metrics-grid');
+      grid.innerHTML = plan.slots.map((key, index) => buildQuickMetricCard(key, index, crew, states, plan)).join('');
+
+      // Flechas de tendencia en tarjetas rápidas (F.4.3.1.d)
+      plan.slots.forEach(key => {
+        const arrow = document.getElementById(`qarrow-${key}`);
+        if (arrow && states[key]) {
+          const dir = getTrendArrow(key, crew.metrics);
+          if (dir && states[key].severity > 0) {
+            arrow.textContent = dir === 'up' ? '↑' : '↓';
+            arrow.style.color = getTrendArrowColor(states[key]);
+            arrow.classList.remove('hidden');
+          } else {
+            arrow.textContent = '';
+            arrow.classList.add('hidden');
+          }
+        }
+      });
+    }
+
+    function buildQuickMetricCard(key, index, crew, states, plan) {
+      const m = crew.metrics;
+      const meta = METRIC_META[key];
+      const state = states[key];
+      const value = metricDisplayValue(key, m, true);
+      const unit = metricDisplayUnit(key, true);
+      const replacement = plan.replacements.find(r => r.index === index);
+      const isReplacement = !!replacement || !PRIMARY_METRICS.includes(key);
+      const subParts = [];
+
+      if (key === 'radiation') {
+        subParts.push(`Tasa ${m.radiation.toFixed(2)} mSv/d`);
+        subParts.push(`Día ${missionDay}`);
+      } else if (replacement) {
+        subParts.push(`Ocupa el lugar de ${METRIC_META[replacement.from].label}`);
+      } else {
+        subParts.push('Parámetro principal');
+      }
+
+      return `
+        <button
+          type="button"
+          onclick="focusMetric('${key}')"
+          aria-label="${meta.label}: ${value} ${unit}. ${state.label}. Ver detalle"
+          class="big-metric-box group w-full min-h-[150px] p-5 flex flex-col justify-between text-left"
+          style="background-color: ${state.cardBg}; border-color: ${state.cardBorder};"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-2.5 min-w-0">
+              <span class="w-9 h-9 rounded-xl bg-white/80 border border-black/5 flex items-center justify-center text-[#0F172A] shrink-0">
+                ${METRIC_ICONS[key]}
+              </span>
+              <div class="min-w-0">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-[#0F172A] text-white text-[10px] font-mono font-extrabold flex items-center justify-center shrink-0">${index + 1}</span>
+                  <span class="text-[10px] font-mono font-extrabold uppercase tracking-widest text-[#475569] truncate">
+                    ${isReplacement ? 'Alterado' : 'Principal'}
+                  </span>
+                </div>
+                <h3 class="text-sm sm:text-base font-extrabold text-[#0F172A] leading-tight mt-0.5 truncate">${meta.label}</h3>
+              </div>
+            </div>
+            <span class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold shrink-0 ${state.badgeClass}">${state.label}</span>
+          </div>
+
+          <div class="mt-4">
+            <div class="flex items-end justify-between gap-2">
+              <div class="flex items-baseline gap-1.5 min-w-0">
+                <span class="${meta.valueClass} font-extrabold font-mono text-[#0F172A] leading-none tracking-tight whitespace-nowrap">${value}</span>
+                <span id="qarrow-${key}" class="text-xs font-extrabold ml-1"></span>
+                <span class="text-sm font-bold text-[#475569]">${unit}</span>
+              </div>
+              <span class="text-[10px] font-bold text-[#475569] group-hover:text-[#0F172A] shrink-0">Ver →</span>
+            </div>
+            <p class="text-[10px] font-mono text-[#475569] mt-2 truncate">${subParts.join(' · ')}</p>
+          </div>
+        </button>
+      `;
+    }
+
+    // -------------------------------------------------------------------------
+    // 4b. PESTAÑA 2: LOS 8 PARÁMETROS + AVISOS
+    // -------------------------------------------------------------------------
+    function renderParametersTab() {
+      const crew = CREW[activeCrewId];
+      const states = getMetricStates(crew);
+
+      document.getElementById('params-astro-label').textContent = crew.name;
+      document.getElementById('alerts-astro-label').textContent = crew.name;
+
+      renderParametersGrid(crew, states);
+
+      const abnormalCount = PARAM_ORDER.filter(key => states[key].severity > 0).length;
+      const countPill = document.getElementById('params-altered-count');
+      countPill.textContent = `${abnormalCount} / 8 alterados`;
+      countPill.style.backgroundColor = abnormalCount > 0 ? '#DC2626' : '#0F172A';
+
+      const overall = pickHighestSeverity(PARAM_ORDER.map(key => states[key]));
+      const overallPill = document.getElementById('params-overall-pill');
+      overallPill.className = `px-3.5 py-2 rounded-xl text-xs font-extrabold ${overall.pillHeaderClass}`;
+      overallPill.textContent = overall.label;
+
+      renderAlertsTab();
+    }
+
+    function renderParametersGrid(crew, states) {
+      const grid = document.getElementById('params-grid');
+      grid.innerHTML = PARAM_ORDER.map(key => buildParameterCard(key, crew, states[key])).join('');
+
+      PARAM_ORDER.forEach(key => {
+        const parameterValue = key === 'radiation' ? crew.metrics.radiation.toFixed(2) : METRIC_META[key].format(crew.metrics);
+        paintBox(key, states[key], parameterValue, crew);
+      });
+
+      const radTotal = document.getElementById('rad-total-value');
+      if (radTotal) {
+        radTotal.textContent = `${crew.metrics.radiationTotal.toFixed(1)} mSv acumulados · Día ${missionDay} · tasa ${crew.metrics.radiation.toFixed(2)} mSv/d`;
+      }
+    }
+
+    function buildParameterCard(key, crew, state) {
+      const meta = METRIC_META[key];
+      const controls = meta.step != null
+        ? `
+          <div class="flex items-center gap-1.5 shrink-0">
+            <button onclick="adjustMetric('${key}', -${meta.step})" aria-label="Disminuir ${meta.fullLabel}" class="w-7 h-7 rounded-lg bg-white/90 hover:bg-white border border-black/10 text-[#0F172A] font-extrabold text-sm flex items-center justify-center transition">−</button>
+            <button onclick="adjustMetric('${key}', ${meta.step})" aria-label="Aumentar ${meta.fullLabel}" class="w-7 h-7 rounded-lg bg-white/90 hover:bg-white border border-black/10 text-[#0F172A] font-extrabold text-sm flex items-center justify-center transition">+</button>
+          </div>
+        `
+        : `
+          <button onclick="${meta.action}" class="px-2.5 py-1.5 rounded-lg bg-[#0F172A] hover:bg-slate-800 text-white text-[10px] font-extrabold transition shrink-0">
+            ${meta.actionLabel}
+          </button>
+        `;
+
+      const extra = key === 'radiation'
+        ? `<div class="flex items-end justify-between gap-2 mt-2">
+             <p id="rad-total-value" class="text-[9px] font-mono text-[#475569] leading-snug"></p>
+             <button onclick="advanceMissionDay()" title="Simular un día de misión y sumar la dosis diaria al acumulado" class="px-2 py-1 rounded-lg bg-white/80 hover:bg-white border border-black/10 text-[9px] font-extrabold text-[#0F172A] transition shrink-0">+ día</button>
+           </div>`
+        : key === 'pvt'
+          ? `<p class="text-[9px] font-mono text-[#475569] mt-2">Prueba de 5 estímulos visuales aleatorios</p>`
+          : key === 'mood'
+            ? `<p class="text-[9px] font-mono text-[#475569] mt-2">Se actualiza con el Test Psicológico</p>`
+            : '';
+
+      return `
+        <article id="box-${key}" class="big-metric-box p-4 flex flex-col justify-between bg-[#ECFDF5] border-[#10B981] min-h-[152px]">
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="w-8 h-8 rounded-xl bg-white/80 border border-black/5 flex items-center justify-center text-[#0F172A] shrink-0">
+                ${METRIC_ICONS[key]}
+              </span>
+              <h2 class="text-sm font-extrabold text-[#0F172A] leading-tight truncate">${meta.fullLabel}</h2>
+            </div>
+            ${controls}
+          </div>
+
+          <div class="flex items-end justify-between gap-2 mt-3">
+            <div class="flex items-baseline gap-1.5 min-w-0">
+              <span id="val-${key}" class="text-[30px] font-extrabold font-mono text-[#0F172A] leading-none tracking-tight whitespace-nowrap">${meta.format(crew.metrics)}</span>
+              <span id="arrow-${key}" class="text-xs font-extrabold ml-1"></span>
+              <span class="text-xs font-bold text-[#475569]">${meta.unit}</span>
+            </div>
+            <span id="badge-${key}" class="px-2.5 py-1 rounded-xl text-[10px] font-extrabold bg-[#10B981] text-white shrink-0">✓ NOMINAL</span>
+          </div>
+
+          ${extra}
+        </article>
+      `;
+    }
+
+    function paintBox(key, state, formattedValue, crew) {
+      const box = document.getElementById(`box-${key}`);
+      const badge = document.getElementById(`badge-${key}`);
+      const val = document.getElementById(`val-${key}`);
+      const arrow = document.getElementById(`arrow-${key}`);
+      if (!box || !badge || !val) return;
+
+      box.style.backgroundColor = state.cardBg;
+      box.style.borderColor = state.cardBorder;
+      val.textContent = formattedValue;
+
+      // Flecha de tendencia (F.4.3.1.d): roja/amarilla arriba/abajo junto al valor fuera de umbral
+      if (arrow && crew) {
+        const dir = getTrendArrow(key, crew.metrics);
+        if (dir && state.severity > 0) {
+          arrow.textContent = dir === 'up' ? '↑' : '↓';
+          arrow.style.color = getTrendArrowColor(state);
+          arrow.classList.remove('hidden');
+        } else {
+          arrow.textContent = '';
+          arrow.classList.add('hidden');
+        }
+      }
+
+      badge.className = `px-2.5 py-1 rounded-xl text-[10px] font-extrabold shrink-0 ${state.badgeClass}`;
+      badge.textContent = state.label;
+    }
+
+    function focusMetric(key) {
+      switchTab(2);
+      setTimeout(() => {
+        const box = document.getElementById(`box-${key}`);
+        if (!box) return;
+        box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        box.classList.remove('card-highlight-pulse');
+        void box.offsetWidth;
+        box.classList.add('card-highlight-pulse');
+      }, 140);
+    }
+
+    function paintHotspot(zone, state) {
+      const halo = document.getElementById(`hotspot-halo-${zone}`);
+      const core = document.getElementById(`hotspot-core-${zone}`);
+      const pillDot = document.getElementById(`zone-pill-dot-${zone}`);
+
+      halo.style.borderColor = state.hex;
+      halo.style.backgroundColor = `${state.hex}33`;
+      core.style.backgroundColor = state.hex;
+      pillDot.style.backgroundColor = state.hex;
+    }
+
+    function selectAnatomicalZone(zone) {
+      const crew = CREW[activeCrewId];
+      const m = crew.metrics;
+
+      const map = {
+        head: {
+          title: 'Cabeza · Sueño, Ánimo y Reflejos',
+          text: `Sueño ${m.sleep.toFixed(1)} h · Ánimo ${m.mood}% · PVT ${m.pvt} ms`,
+          boxes: ['box-sleep', 'box-mood', 'box-pvt']
+        },
+        thorax: {
+          title: 'Tórax · Presión y Frecuencia Cardíaca',
+          text: `PA ${m.bpSys}/${m.bpDia} mmHg · FC ${m.hr} bpm`,
+          boxes: ['box-bp', 'box-hr']
+        },
+        abdomen: {
+          title: 'Abdomen · Metabolismo, Temp y Radiación',
+          text: `Azúcar ${m.glucose} mg/dL · Temp ${m.temp.toFixed(1)} °C · Rad ${m.radiationTotal.toFixed(1)} mSv acum. (${m.radiation.toFixed(2)}/d)`,
+          boxes: ['box-glucose', 'box-temp', 'box-radiation']
+        }
+      };
+
+      const info = map[zone];
+      document.getElementById('zone-tooltip-title').textContent = info.title;
+      document.getElementById('zone-tooltip-text').textContent = info.text;
+      document.getElementById('zone-tooltip').classList.remove('hidden');
+
+      info.boxes.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.classList.remove('card-highlight-pulse');
+        void el.offsetWidth;
+        el.classList.add('card-highlight-pulse');
+      });
+    }
+
+    function closeZoneTooltip() {
+      document.getElementById('zone-tooltip').classList.add('hidden');
+    }
+
+    function adjustMetric(key, delta) {
+      const crew = CREW[activeCrewId];
+      const m = crew.metrics;
+
+      if (key === 'bp') {
+        m.bpSys = Math.round(Math.min(185, Math.max(75, m.bpSys + delta)));
+        m.bpDia = Math.round(Math.min(115, Math.max(45, m.bpDia + Math.round(delta * 0.6))));
+      } else if (key === 'hr') {
+        m.hr = Math.round(Math.min(175, Math.max(36, m.hr + delta)));
+      } else if (key === 'glucose') {
+        m.glucose = Math.round(Math.min(230, Math.max(48, m.glucose + delta)));
+      } else if (key === 'temp') {
+        m.temp = +(Math.min(39.5, Math.max(34.5, m.temp + delta))).toFixed(1);
+      } else if (key === 'sleep') {
+        m.sleep = +(Math.min(10.5, Math.max(4.0, m.sleep + delta))).toFixed(1);
+      } else if (key === 'radiation') {
+        m.radiation = +(Math.min(2.20, Math.max(0.20, m.radiation + delta))).toFixed(2);
+      }
+
+      renderAll();
+    }
+
+    function advanceMissionDay() {
+      missionDay += 1;
+      Object.values(CREW).forEach(crew => {
+        crew.metrics.radiationTotal = +(crew.metrics.radiationTotal + crew.metrics.radiation).toFixed(1);
+      });
+      renderAll();
+      showToast(`Día ${missionDay} registrado · dosis acumulada actualizada`, '#2563EB');
+    }
+
+    // =========================================================================
+    // 5. MODAL INTERACTIVO DEL TEST PVT (5 ESTÍMULOS ALEATORIOS 1.2s A 3.2s)
+    // =========================================================================
+    let pvtStatus = 'idle'; // 'idle' | 'wait' | 'go' | 'feedback'
+    let pvtResults = [];
+    let pvtWaitTimer = null;
+    let pvtAnimFrame = null;
+    let pvtGoTimestamp = 0;
+
+    function openPvtModal() {
+      const crew = CREW[activeCrewId];
+      document.getElementById('pvt-modal-title').textContent = `Test PVT · ${crew.name}`;
+      document.getElementById('pvt-modal-current').textContent = `${crew.metrics.pvt} ms`;
+      setPvtScreen('idle');
+      pvtStatus = 'idle';
+      document.getElementById('pvt-modal').classList.remove('hidden');
+    }
+
+    function closePvtModal() {
+      clearTimeout(pvtWaitTimer);
+      cancelAnimationFrame(pvtAnimFrame);
+      pvtStatus = 'idle';
+      document.getElementById('pvt-modal').classList.add('hidden');
+    }
+
+    function setPvtScreen(stateName) {
+      ['idle', 'wait', 'go', 'feedback'].forEach(s => {
+        document.getElementById(`pvt-state-${s}`).classList.toggle('hidden', s !== stateName);
+      });
+    }
+
+    function beginPvtSession() {
+      pvtResults = [];
+      scheduleNextPvtStimulus();
+    }
+
+    function scheduleNextPvtStimulus() {
+      if (pvtResults.length >= 5) {
+        const avg = Math.round(pvtResults.reduce((a, b) => a + b, 0) / pvtResults.length);
+        const crew = CREW[activeCrewId];
+        crew.metrics.pvt = avg;
+
+        document.getElementById('pvt-modal-current').textContent = `${avg} ms`;
+        document.getElementById('pvt-feedback-ms').textContent = `${avg} ms`;
+        document.getElementById('pvt-feedback-sub').textContent = 'Promedio de 5 estímulos guardado';
+        setPvtScreen('feedback');
+        pvtStatus = 'idle';
+
+        renderAll();
+        const st = evaluateIndicator('pvt', crew);
+        showToast(`PVT actualizado: ${avg} ms (${st.label})`, st.hex);
+
+        setTimeout(() => {
+          if (!document.getElementById('pvt-modal').classList.contains('hidden')) {
+            setPvtScreen('idle');
+          }
+        }, 1600);
+        return;
+      }
+
+      pvtStatus = 'wait';
+      setPvtScreen('wait');
+      document.getElementById('pvt-trial-label').textContent = `Estímulo ${pvtResults.length + 1} de 5`;
+
+      // Intervalo aleatorio entre 1.2s (1200ms) y 3.2s (3200ms)
+      const randomDelay = 1200 + Math.random() * 2000;
+      pvtWaitTimer = setTimeout(() => {
+        pvtStatus = 'go';
+        pvtGoTimestamp = performance.now();
+        setPvtScreen('go');
+        updatePvtLiveClock();
+      }, randomDelay);
+    }
+
+    function updatePvtLiveClock() {
+      if (pvtStatus !== 'go') return;
+      const elapsed = Math.round(performance.now() - pvtGoTimestamp);
+      document.getElementById('pvt-live-ms').textContent = `${elapsed} ms`;
+      pvtAnimFrame = requestAnimationFrame(updatePvtLiveClock);
+    }
+
+    function handlePvtPadClick() {
+      if (pvtStatus === 'wait') {
+        clearTimeout(pvtWaitTimer);
+        showToast('Espera el estímulo amarillo antes de pulsar', '#EAB308');
+        scheduleNextPvtStimulus();
+      } else if (pvtStatus === 'go') {
+        cancelAnimationFrame(pvtAnimFrame);
+        const reactionMs = Math.max(140, Math.round(performance.now() - pvtGoTimestamp));
+        pvtResults.push(reactionMs);
+        pvtStatus = 'feedback';
+
+        document.getElementById('pvt-feedback-ms').textContent = `${reactionMs} ms`;
+        document.getElementById('pvt-feedback-sub').textContent = `Estímulo ${pvtResults.length} de 5`;
+        setPvtScreen('feedback');
+
+        setTimeout(scheduleNextPvtStimulus, 650);
+      }
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.code === 'Space' && !document.getElementById('pvt-modal').classList.contains('hidden')) {
+        if (pvtStatus === 'wait' || pvtStatus === 'go') {
+          e.preventDefault();
+          handlePvtPadClick();
+        }
+      }
+    });
+
+    // =========================================================================
+    // 6. PESTAÑA 3: TEST PSICOLÓGICO (6 PREGUNTAS DE ÁNIMO/ESTRÉS)
+    // =========================================================================
+    const MENTAL_QUESTIONS = [
+      { id: 'q1', text: '1. Nivel de energía y motivación en turno', invert: false },
+      { id: 'q2', text: '2. Sensación de calma y equilibrio emocional', invert: false },
+      { id: 'q3', text: '3. Nivel de tensión o estrés percibido (1 = nada, 5 = alto)', invert: true },
+      { id: 'q4', text: '4. Claridad mental y concentración operativa', invert: false },
+      { id: 'q5', text: '5. Sensación de descanso tras el sueño', invert: false },
+      { id: 'q6', text: '6. Ánimo y cohesión con el equipo de misión', invert: false }
+    ];
+
+    const crewMentalAnswers = {
+      koch:   { q1: 5, q2: 5, q3: 1, q4: 5, q5: 4, q6: 5 },
+      glover: { q1: 4, q2: 4, q3: 2, q4: 5, q5: 4, q6: 5 },
+      kim:    { q1: 4, q2: 4, q3: 2, q4: 4, q5: 3, q6: 5 }
+    };
+
+    function renderMentalTab() {
+      const crew = CREW[activeCrewId];
+      document.getElementById('routine-astro-label').textContent = crew.name;
+      const answers = crewMentalAnswers[activeCrewId];
+
+      const listEl = document.getElementById('mental-questions-list');
+      listEl.innerHTML = MENTAL_QUESTIONS.map(q => {
+        const currentVal = answers[q.id];
+        return `
+          <div class="rounded-2xl bg-[#FAF7F2] border border-[#E5DFD3] p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+            <span class="text-xs sm:text-sm font-bold text-[#0F172A]">${q.text}</span>
+            <div class="flex items-center gap-1.5 shrink-0">
+              ${[1, 2, 3, 4, 5].map(n => `
+                <button
+                  onclick="setMentalAnswer('${q.id}', ${n})"
+                  class="w-10 h-10 rounded-xl text-xs font-mono font-extrabold transition ${
+                    currentVal === n
+                      ? 'bg-[#0F172A] text-white shadow-xs'
+                      : 'bg-white hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2]'
+                  }"
+                >${n}</button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const answered = MENTAL_QUESTIONS.filter(q => answers[q.id] != null).length;
+      document.getElementById('routine-count-pill').textContent = `${answered} / ${MENTAL_QUESTIONS.length} respondidas`;
+
+      updateMoodScoreFromAnswers();
+    }
+
+    function setMentalAnswer(qId, num) {
+      crewMentalAnswers[activeCrewId][qId] = num;
+      renderMentalTab();
+      renderSummaryTab();
+      renderParametersTab();
+      renderTestsTab();
+    }
+
+    function updateMoodScoreFromAnswers() {
+      const answers = crewMentalAnswers[activeCrewId];
+      let sum = 0;
+      MENTAL_QUESTIONS.forEach(q => {
+        const raw = answers[q.id] || 3;
+        sum += q.invert ? (6 - raw) : raw;
+      });
+      const pct = Math.round((sum / (MENTAL_QUESTIONS.length * 5)) * 100);
+      CREW[activeCrewId].metrics.mood = pct;
+
+      const stMood = evaluateIndicator('mood', CREW[activeCrewId]);
+      const badge = document.getElementById('routine-mood-badge');
+      badge.className = `px-3.5 py-2 rounded-xl text-xs font-mono font-extrabold ${stMood.badgeClass}`;
+      badge.textContent = `Estado de Ánimo: ${pct} %`;
+      return pct;
+    }
+
+    function confirmMentalRoutine() {
+      const crew = CREW[activeCrewId];
+      switchTab(1);
+      showToast(`Estado de Ánimo actualizado: ${crew.metrics.mood} %`, '#10B981');
+    }
+
+    // -------------------------------------------------------------------------
+    // 6b. TARJETA RESUMEN DEL PVT EN LA PESTAÑA DE TESTS
+    // -------------------------------------------------------------------------
+    function renderTestsTab() {
+      const crew = CREW[activeCrewId];
+      const m = crew.metrics;
+      document.getElementById('tests-astro-label').textContent = crew.name;
+
+      const stPvt = evaluateIndicator('pvt', crew);
+      const stMood = evaluateIndicator('mood', crew);
+      const overall = pickHighestSeverity([stMood, stPvt]);
+
+      const headerPill = document.getElementById('tests-header-pill');
+      headerPill.className = `px-3.5 py-2 rounded-xl text-xs font-extrabold ${overall.pillHeaderClass}`;
+      headerPill.textContent = overall.label;
+
+      const pvtValue = document.getElementById('tests-pvt-value');
+      pvtValue.textContent = `${m.pvt}`;
+      pvtValue.style.color = stPvt.severity > 0 ? stPvt.hex : '#FFFFFF';
+
+      const pvtBadge = document.getElementById('tests-pvt-badge');
+      pvtBadge.className = `px-3 py-1 rounded-xl text-xs font-extrabold shrink-0 ${stPvt.badgeClass}`;
+      pvtBadge.textContent = stPvt.label;
+
+      const last = document.getElementById('tests-pvt-last');
+      if (last) last.textContent = `Último: ${m.pvt} ms`;
+    }
+
+    // =========================================================================
+    // 7. PESTAÑA 2: ALERTAS AUTOMÁTICAS, SÍNTOMAS Y RESPIRACIÓN 4-4-6
+    // =========================================================================
+    let alertFilter = 'all';
+    let selectedSymptom = 'Cefalea';
+    let completedGuideSteps = {};
+
+    const SYMPTOM_PROTOCOLS = {
+      'Cefalea': [
+        'Hidratar con 350 ml de agua isotónica para compensar fluidos en microgravedad.',
+        'Reducir brillo de pantallas y relajar musculatura cervical durante 2 minutos.',
+        'Completar 2 ciclos de respiración guiada 4-4-6.'
+      ],
+      'Fatiga visual': [
+        'Aplicar regla 20-20-20 mirando un punto lejano durante 20 segundos.',
+        'Aplicar lágrimas artificiales estériles del botiquín.',
+        'Descansar la vista con ojos cerrados durante 3 minutos.'
+      ],
+      'Estrés / Tensión': [
+        'Realizar pausa operativa de 5 minutos en zona tranquila.',
+        'Ejecutar 3 ciclos completos de respiración guiada 4-4-6.',
+        'Priorizar tareas esenciales de turno con el resto de la tripulación.'
+      ],
+      'Insomnio': [
+        'Atenuar iluminación de cabina (< 30 lux) 60 minutos antes del descanso.',
+        'Evitar estimulantes y pantallas brillantes previo a dormir.',
+        'Realizar respiración guiada 4-4-6 en litera.'
+      ],
+      'Mareo': [
+        'Fijar la mirada en una referencia estructural estable de la cabina.',
+        'Revisar Presión Arterial e hidratar con 300 ml de agua.',
+        'Permanecer sujeto en posición neutra hasta estabilizar.'
+      ],
+      'Dolor torácico': [
+        'Suspender todo esfuerzo físico de inmediato y mantener postura erguida.',
+        'Verificar Presión Arterial, Frecuencia Cardíaca y ventilación local.',
+        'Activar protocolo guiado y enlace médico con Tierra.'
+      ]
+    };
+
+    function setAlertFilter(filter) {
+      alertFilter = filter;
+      ['all', 'alert', 'reminder', 'suggestion'].forEach(f => {
+        const btn = document.getElementById(`flt-${f}`);
+        btn.className = f === filter
+          ? 'py-1.5 rounded-lg text-xs font-extrabold bg-[#0F172A] text-white transition'
+          : 'py-1.5 rounded-lg text-xs font-extrabold text-[#475569] hover:text-[#0F172A] transition';
+      });
+      renderAlertsTab();
+    }
+
+    function renderAlertsTab() {
+      const crew = CREW[activeCrewId];
+      const m = crew.metrics;
+      document.getElementById('alerts-astro-label').textContent = crew.name;
+
+      const feed = [];
+
+      // Alertas dinámicas según parámetros fuera de rango NASA
+      const checks = [
+        { key: 'bp', title: `Presión Arterial (${m.bpSys}/${m.bpDia} mmHg)`, desc: 'Desviación respecto a rango nominal 105–124 mmHg.' },
+        { key: 'hr', title: `Frecuencia Cardíaca (${m.hr} bpm)`, desc: 'Pulso fuera de banda nominal 59–87 bpm.' },
+        { key: 'glucose', title: `Azúcar en Sangre (${m.glucose} mg/dL)`, desc: 'Glucemia fuera de rango nominal 71–109 mg/dL.' },
+        { key: 'temp', title: `Temperatura Corporal (${m.temp.toFixed(1)} °C)`, desc: 'Variación térmica respecto a 36.2–37.2 °C.' },
+        { key: 'sleep', title: `Horas de Sueño (${m.sleep.toFixed(1)} h)`, desc: 'Déficit respecto a referencia circadiana NASA (V1 6001).' },
+        { key: 'mood', title: `Estado de Ánimo (${m.mood} %)`, desc: 'Indicador por debajo del umbral óptimo ≥ 80 %.' },
+        { key: 'radiation', title: `Radiación Ionizante (${m.radiation.toFixed(2)} mSv/d · ${m.radiationTotal.toFixed(1)} mSv acum.)`, desc: 'Exposición próxima o superior al límite V1 4033 (< 1.3 mSv/d).' },
+        { key: 'pvt', title: `Test PVT Reflejos (${m.pvt} ms)`, desc: 'Tiempo de reacción superior al umbral nominal < 265 ms.' }
+      ];
+
+      checks.forEach(c => {
+        const st = evaluateIndicator(c.key, crew);
+        if (st.severity > 0) {
+          feed.push({
+            category: 'alert',
+            badge: st.label,
+            badgeClass: st.badgeClass,
+            border: st.hex,
+            bg: st.cardBg,
+            title: c.title,
+            desc: c.desc
+          });
+        }
+      });
+
+      // Recordatorios y Sugerencias
+      feed.push({
+        category: 'reminder',
+        badge: '▼ RECORDATORIO',
+        badgeClass: 'bg-[#2563EB] text-white',
+        border: '#2563EB',
+        bg: '#EFF6FF',
+        title: 'Sincronización Store-and-Forward',
+        desc: 'Paquete biométrico listo para envío diferido Tierra-Marte.'
+      });
+
+      feed.push({
+        category: 'suggestion',
+        badge: '✓ SUGERENCIA',
+        badgeClass: 'bg-[#10B981] text-white',
+        border: '#10B981',
+        bg: '#ECFDF5',
+        title: 'Hidratación e Iluminación Circadiana',
+        desc: 'Mantener ingesta hídrica regular y luz enriquecida en turno activo.'
+      });
+
+      const filtered = alertFilter === 'all' ? feed : feed.filter(i => i.category === alertFilter);
+      document.getElementById('alerts-badge-count').textContent = filtered.length;
+
+      const listEl = document.getElementById('alerts-list-container');
+      listEl.innerHTML = filtered.map(item => `
+        <div style="border-color: ${item.border}; background-color: ${item.bg};" class="rounded-2xl border-2 p-3.5 space-y-1">
+          <span class="inline-block px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold ${item.badgeClass}">${item.badge}</span>
+          <h3 class="text-xs sm:text-sm font-extrabold text-[#0F172A]">${item.title}</h3>
+          <p class="text-xs text-[#334155]">${item.desc}</p>
+        </div>
+      `).join('');
+
+      renderSymptomProtocol();
+    }
+
+    function selectSymptom(name) {
+      selectedSymptom = name;
+      completedGuideSteps = {};
+      document.getElementById('symptom-free-input').value = '';
+      document.querySelectorAll('.sym-pill').forEach(btn => {
+        const active = btn.id === `sym-${name}`;
+        btn.className = active
+          ? 'sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#0F172A] text-white text-left transition'
+          : 'sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition';
+      });
+      renderSymptomProtocol();
+    }
+
+    function onFreeSymptomInput(val) {
+      const clean = val.trim();
+      if (!clean) return;
+      document.querySelectorAll('.sym-pill').forEach(btn => {
+        btn.className = 'sym-pill px-3 py-2 rounded-xl text-xs font-extrabold bg-[#FAF7F2] hover:bg-slate-100 text-[#0F172A] border border-[#D6CFC2] text-left transition';
+      });
+      selectedSymptom = clean;
+      completedGuideSteps = {};
+      renderSymptomProtocol();
+    }
+
+    function renderSymptomProtocol() {
+      const steps = SYMPTOM_PROTOCOLS[selectedSymptom] || [
+        'Detener actividad exigente y adoptar postura cómoda en cabina.',
+        'Hidratar con 300 ml de agua y revisar constantes en Resumen.',
+        'Completar 2 ciclos de respiración guiada 4-4-6.'
+      ];
+
+      document.getElementById('guide-active-title').textContent = `Protocolo: ${selectedSymptom}`;
+      const done = Object.values(completedGuideSteps).filter(Boolean).length;
+      document.getElementById('guide-step-count').textContent = `${done} / ${steps.length}`;
+
+      document.getElementById('guide-steps-list').innerHTML = steps.map((step, i) => {
+        const isDone = !!completedGuideSteps[i];
+        return `
+          <button
+            onclick="toggleStepDone(${i})"
+            class="w-full text-left p-3 rounded-xl border transition flex items-start gap-2.5 ${
+              isDone
+                ? 'bg-emerald-500/20 border-emerald-400/50 text-emerald-200'
+                : 'bg-fuchsia-950/50 hover:bg-fuchsia-900/50 border-[#D946EF] text-white'
+            }"
+          >
+            <span class="w-5 h-5 rounded-md flex items-center justify-center text-xs font-extrabold shrink-0 mt-0.5 ${
+              isDone ? 'bg-[#10B981] text-[#052E16]' : 'bg-[#D946EF] text-white'
+            }">
+              ${isDone ? '✓' : i + 1}
+            </span>
+            <span class="text-xs font-bold leading-snug ${isDone ? 'line-through opacity-80' : ''}">${step}</span>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function toggleStepDone(idx) {
+      completedGuideSteps[idx] = !completedGuideSteps[idx];
+      renderSymptomProtocol();
+    }
+
+    // Respiración guiada 4-4-6
+    let breathRunning = false;
+    let breathInterval = null;
+
+    function toggleBreathing() {
+      const btn = document.getElementById('breath-btn');
+      if (breathRunning) {
+        breathRunning = false;
+        clearInterval(breathInterval);
+        btn.textContent = 'Iniciar 4-4-6';
+        btn.className = 'mt-1 px-3.5 py-1.5 rounded-xl bg-[#10B981] hover:bg-emerald-400 text-[#052E16] text-xs font-extrabold transition';
+        const orb = document.getElementById('breath-orb');
+        orb.style.transform = 'scale(0.88)';
+        orb.style.backgroundColor = 'rgba(16, 185, 129, 0.25)';
+        orb.style.borderColor = '#10B981';
+        document.getElementById('breath-phase').textContent = 'Listo';
+        document.getElementById('breath-secs').textContent = '4-4-6';
+        return;
+      }
+
+      breathRunning = true;
+      btn.textContent = 'Detener';
+      btn.className = 'mt-1 px-3.5 py-1.5 rounded-xl bg-slate-700 hover:bg-slate-600 text-white text-xs font-extrabold transition';
+
+      const cycle = [
+        { label: 'Inhalar', sec: 4, scale: 1.18, bg: 'rgba(16, 185, 129, 0.35)', border: '#10B981' },
+        { label: 'Sostener', sec: 4, scale: 1.18, bg: 'rgba(234, 179, 8, 0.35)', border: '#EAB308' },
+        { label: 'Exhalar', sec: 6, scale: 0.80, bg: 'rgba(37, 99, 235, 0.35)', border: '#60A5FA' }
+      ];
+
+      let idx = 0;
+      let rem = cycle[0].sec;
+
+      const paintOrb = () => {
+        const c = cycle[idx];
+        const orb = document.getElementById('breath-orb');
+        orb.style.transform = `scale(${c.scale})`;
+        orb.style.backgroundColor = c.bg;
+        orb.style.borderColor = c.border;
+        document.getElementById('breath-phase').textContent = c.label;
+        document.getElementById('breath-secs').textContent = `${rem}s`;
+      };
+
+      paintOrb();
+      breathInterval = setInterval(() => {
+        rem--;
+        if (rem <= 0) {
+          idx = (idx + 1) % cycle.length;
+          rem = cycle[idx].sec;
+        }
+        paintOrb();
+      }, 1000);
+    }
+
+    // =========================================================================
+    // 8. PESTAÑA 4: TRIPULACIÓN A BORDO (3 ASTRONAUTAS RECONOCIDOS)
+    // =========================================================================
+    function buildCrewAvatar(crew, ringColor) {
+      return `
+        <svg class="w-full h-full" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="32" cy="32" r="32" fill="${ringColor}" fill-opacity="0.2"/>
+          <path d="M12 60 C14 47, 22 43, 32 43 C42 43, 50 47, 52 60 Z" fill="#F8FAFC"/>
+          <rect x="27" y="35" width="10" height="9" rx="4" fill="${crew.skin}"/>
+          <path d="M22 25 C22 15, 42 15, 42 25 L42 32 C42 39, 22 39, 22 32 Z" fill="${crew.skin}"/>
+          <path d="M21 25 C21 13, 43 13, 43 25 C40 18, 24 18, 21 25 Z" fill="${crew.hair}"/>
+          <circle cx="28" cy="27" r="1.4" fill="#0F172A"/>
+          <circle cx="36" cy="27" r="1.4" fill="#0F172A"/>
+          <path d="M29 33 Q32 35.5 35 33" stroke="#0F172A" stroke-width="1.4" stroke-linecap="round"/>
+        </svg>
+      `;
+    }
+
+    function renderCrewTab() {
+      const container = document.getElementById('crew-cards-grid');
+      container.innerHTML = Object.values(CREW).map(crew => {
+        const isCurrent = crew.id === activeCrewId;
+        const m = crew.metrics;
+        const allStates = ['bp', 'hr', 'glucose', 'temp', 'sleep', 'mood', 'radiation', 'pvt'].map(k => evaluateIndicator(k, crew));
+        const overall = pickHighestSeverity(allStates);
+
+        return `
+          <div
+            onclick="selectCrewFromCard('${crew.id}')"
+            role="button"
+            tabindex="0"
+            class="rounded-[24px] p-6 cursor-pointer transition-all flex flex-col justify-between gap-5 ${
+              isCurrent
+                ? 'bg-[#0F172A] text-white ring-3 ring-[#10B981] shadow-xl'
+                : 'bg-white text-[#0F172A] border-2 border-[#DFD8CA] hover:border-[#0F172A]'
+            }"
+          >
+            <div class="flex items-center gap-4">
+              <div class="w-14 h-14 rounded-full p-0.5 shrink-0" style="background-color: ${overall.hex};">
+                <div class="w-full h-full rounded-full bg-[#0F172A] overflow-hidden">
+                  ${buildCrewAvatar(crew, overall.hex)}
+                </div>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center justify-between gap-2">
+                  <span class="px-2.5 py-0.5 rounded-lg text-[10px] font-extrabold ${overall.badgeClass}">
+                    ${overall.label}
+                  </span>
+                  ${isCurrent ? '<span class="text-[11px] font-extrabold text-emerald-400">ACTIVO</span>' : ''}
+                </div>
+                <h2 class="text-lg font-extrabold mt-1.5 truncate">${crew.name}</h2>
+                <p class="text-xs ${isCurrent ? 'text-slate-300' : 'text-[#475569]'}">${crew.role}</p>
+              </div>
+            </div>
+
+            <!-- Datos Antropométricos -->
+            <div class="grid grid-cols-4 gap-2 text-center">
+              <div class="${isCurrent ? 'bg-slate-800' : 'bg-[#FAF7F2]'} rounded-xl py-2.5 px-1">
+                <div class="text-[10px] font-bold opacity-70">Altura</div>
+                <div class="text-xs font-mono font-extrabold mt-0.5">${crew.height}</div>
+              </div>
+              <div class="${isCurrent ? 'bg-slate-800' : 'bg-[#FAF7F2]'} rounded-xl py-2.5 px-1">
+                <div class="text-[10px] font-bold opacity-70">Peso</div>
+                <div class="text-xs font-mono font-extrabold mt-0.5">${crew.weight}</div>
+              </div>
+              <div class="${isCurrent ? 'bg-slate-800' : 'bg-[#FAF7F2]'} rounded-xl py-2.5 px-1">
+                <div class="text-[10px] font-bold opacity-70">IMC</div>
+                <div class="text-xs font-mono font-extrabold mt-0.5">${crew.bmi}</div>
+              </div>
+              <div class="${isCurrent ? 'bg-slate-800' : 'bg-[#FAF7F2]'} rounded-xl py-2.5 px-1">
+                <div class="text-[10px] font-bold opacity-70">Grupo</div>
+                <div class="text-xs font-mono font-extrabold mt-0.5">${crew.blood}</div>
+              </div>
+            </div>
+
+            <!-- Resumen de los parámetros -->
+            <div class="grid grid-cols-2 gap-2 text-xs font-mono pt-3 border-t ${isCurrent ? 'border-slate-800' : 'border-[#E5DFD3]'}">
+              <div>PA: <strong>${m.bpSys}/${m.bpDia}</strong></div>
+              <div>FC: <strong>${m.hr} bpm</strong></div>
+              <div>Azúcar: <strong>${m.glucose} mg/dL</strong></div>
+              <div>Temp: <strong>${m.temp.toFixed(1)} °C</strong></div>
+              <div>Sueño: <strong>${m.sleep.toFixed(1)} h</strong></div>
+              <div>Ánimo: <strong>${m.mood} %</strong></div>
+              <div>Rad: <strong>${m.radiationTotal.toFixed(1)} mSv</strong> <span class="opacity-60">(${m.radiation.toFixed(2)}/d)</span></div>
+              <div>PVT: <strong>${m.pvt} ms</strong></div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectCrewFromCard(id) {
+      setActiveAstronaut(id);
+      switchTab(1);
+      showToast(`Astronauta activo: ${CREW[id].name}`, '#10B981');
+    }
+
+    // =========================================================================
+    // 9. NAVEGACIÓN E INICIALIZACIÓN
+    // =========================================================================
+    function setActiveAstronaut(id) {
+      activeCrewId = id;
+      closeZoneTooltip();
+      renderAll();
+    }
+
+    function switchTab(tabIndex) {
+      currentTab = tabIndex;
+      [1, 2, 3, 4].forEach(n => {
+        document.getElementById(`screen-${n}`).classList.toggle('hidden', n !== tabIndex);
+        const btn = document.getElementById(`nav-tab-${n}`);
+        btn.className = n === tabIndex
+          ? 'w-[62px] h-[58px] rounded-2xl flex flex-col items-center justify-center gap-1 bg-[#1E293B] text-white shadow-sm transition-all relative'
+          : 'w-[62px] h-[58px] rounded-2xl flex flex-col items-center justify-center gap-1 text-[#475569] hover:text-[#0F172A] hover:bg-[#FAF7F2] transition-all relative';
+      });
+      renderAll();
+    }
+
+    function renderAll() {
+      renderMentalTab();
+      renderSummaryTab();
+      renderParametersTab();
+      renderTestsTab();
+      renderCrewTab();
+    }
+
+    window.onload = function () {
+      renderAll();
+    };
+  </script>
+</body>
+</html>

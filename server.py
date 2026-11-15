@@ -27,25 +27,100 @@ from nasa_referencia import (
     cargar_umbrales_nasa,
     obtener_referencias_osdr,
 )
-from simulador_sensores import ESCENARIOS_OBJETIVO, SimuladorSensores
+from simulador_sensores import ESCENARIOS_OBJETIVO, LIMITES_FISICOS, SimuladorSensores
 
 BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 MODEL_PATH = BASE_DIR / "modelo_xgb.json"
 
+CREW_TEMPLATES: dict[str, dict[str, Any]] = {
+    "koch": {
+        "id": "koch",
+        "name": "Esp. Christina Koch",
+        "role": "Especialista de Misión",
+        "height": "170 cm",
+        "weight": "61 kg",
+        "bmi": "21.1",
+        "blood": "O+",
+        "skin": "#F4CBB2",
+        "hair": "#6B3410",
+        "seed": 42,
+        "initial_scenario": "nominal",
+        "initial_overrides": {
+            "presion_sistolica": 118.0,
+            "frec_cardiaca": 68.0,
+            "glucemia": 88.0,
+            "temp_corporal": 36.15,
+            "horas_sueno": 8.2,
+            "estado_animo": 9.1,
+        },
+        "radiation_rate": 0.84,
+        "radiation_total": 156.2,
+        "pvt_ms": 238,
+    },
+    "glover": {
+        "id": "glover",
+        "name": "Cmdte. Victor Glover",
+        "role": "Comandante de Misión",
+        "height": "183 cm",
+        "weight": "86 kg",
+        "bmi": "25.7",
+        "blood": "A+",
+        "skin": "#8C5327",
+        "hair": "#1A1A1D",
+        "seed": 108,
+        "initial_scenario": "sobrecarga_cardiovascular_preventiva",
+        "initial_overrides": {
+            "presion_sistolica": 135.0,
+            "frec_cardiaca": 96.0,
+            "glucemia": 94.0,
+            "temp_corporal": 36.35,
+            "horas_sueno": 7.8,
+            "estado_animo": 8.7,
+        },
+        "radiation_rate": 1.18,
+        "radiation_total": 219.5,
+        "pvt_ms": 248,
+    },
+    "kim": {
+        "id": "kim",
+        "name": "Dr. Jonny Kim",
+        "role": "Médico de Vuelo / CMO",
+        "height": "178 cm",
+        "weight": "77 kg",
+        "bmi": "24.3",
+        "blood": "B+",
+        "skin": "#E6BF9E",
+        "hair": "#14161B",
+        "seed": 215,
+        "initial_scenario": "sueno_glucemia_preventiva",
+        "initial_overrides": {
+            "presion_sistolica": 115.0,
+            "frec_cardiaca": 64.0,
+            "glucemia": 86.0,
+            "temp_corporal": 36.0,
+            "horas_sueno": 5.8,
+            "estado_animo": 8.2,
+        },
+        "radiation_rate": 0.92,
+        "radiation_total": 171.1,
+        "pvt_ms": 328,
+    },
+}
 
-class EstadoConsola:
-    """Mantiene el estado compartido de simulación, triaje y alertas de forma thread-safe."""
 
-    def __init__(self) -> None:
-        self.lock = threading.Lock()
-        self.simulador = SimuladorSensores(seed=42)
-        self.motor = MotorInferencia(model_path=MODEL_PATH)
-        self.umbrales = cargar_umbrales_nasa()
-        self.osdr_ref = obtener_referencias_osdr(forzar_red=False)
+class PerfilTripulante:
+    """Estado fisiológico, histórico y operativo independiente por tripulante."""
+
+    def __init__(self, cfg: dict[str, Any]) -> None:
+        self.meta = dict(cfg)
+        self.simulador = SimuladorSensores(seed=int(cfg["seed"]))
+        self.simulador.activar_escenario(cfg["initial_scenario"], inmediato=True)
+        for var, val in cfg.get("initial_overrides", {}).items():
+            self.simulador.valores_actuales[var] = float(val)
+            self.simulador._objetivo_actual[var] = float(val)
+
         self.historico: deque[dict[str, Any]] = deque(maxlen=90)
-
-        self.simulacion_activa = True
         self.emergencia_manual = False
         self.alarma_silenciada = False
         self.parpadeo_detenido = False
@@ -61,29 +136,63 @@ class EstadoConsola:
         self.racha_dias = 12
         self.bitacora_acciones: list[str] = []
         self.alertas_inhibidas: list[str] = []
-
+        self.radiation_rate = float(cfg["radiation_rate"])
+        self.radiation_total = float(cfg["radiation_total"])
+        self.pvt_ms = int(cfg["pvt_ms"])
         self.ultimo_resultado: dict[str, Any] | None = None
         self.ultimo_cabin_env: dict[str, float] = self.simulador.obtener_entorno_cabina()
 
-        # Lectura inicial garantizada
-        self.avanzar_tick(forzar_llm=True)
 
-    def avanzar_tick(self, forzar_tick: bool = False, forzar_llm: bool = False) -> dict[str, Any]:
-        """Avanza un paso de telemetría si la simulación está activa o se fuerza."""
-        if self.simulacion_activa or forzar_tick or len(self.historico) == 0:
-            lectura = self.simulador.leer_sensores()
-            cabin_env = self.simulador.obtener_entorno_cabina()
-            stale = bool(self.datos_manuales_obsoletos) or (not self.simulacion_activa and not forzar_tick)
+def estimar_presion_diastolica(presion_sistolica: float) -> int:
+    """Estima la presión diastólica coherente con la sistólica para despliegue clínico."""
+    dia = round(52.0 + (float(presion_sistolica) - 80.0) * 0.52)
+    return int(max(45, min(118, dia)))
+
+
+class EstadoConsola:
+    """Mantiene el estado compartido de simulación, triaje y alertas de forma thread-safe."""
+
+    def __init__(self) -> None:
+        self.lock = threading.Lock()
+        self.motor = MotorInferencia(model_path=MODEL_PATH)
+        self.umbrales = cargar_umbrales_nasa()
+        self.osdr_ref = obtener_referencias_osdr(forzar_red=False)
+
+        self.simulacion_activa = True
+        self.mission_day = 186
+        self.active_crew_id = "koch"
+        self.crew: dict[str, PerfilTripulante] = {
+            cid: PerfilTripulante(cfg) for cid, cfg in CREW_TEMPLATES.items()
+        }
+
+        # Lectura inicial garantizada para toda la tripulación
+        for cid in ("glover", "kim", "koch"):
+            self._tick_perfil(self.crew[cid], forzar_tick=True, forzar_llm=True)
+
+    @property
+    def perfil_activo(self) -> PerfilTripulante:
+        return self.crew[self.active_crew_id]
+
+    def _tick_perfil(
+        self,
+        perfil: PerfilTripulante,
+        forzar_tick: bool = False,
+        forzar_llm: bool = False,
+    ) -> None:
+        if self.simulacion_activa or forzar_tick or len(perfil.historico) == 0:
+            lectura = perfil.simulador.leer_sensores()
+            cabin_env = perfil.simulador.obtener_entorno_cabina()
+            stale = bool(perfil.datos_manuales_obsoletos) or (not self.simulacion_activa and not forzar_tick)
             resultado = self.motor.evaluar(
                 lectura=lectura,
                 cabin_env=cabin_env,
-                emergencia_manual=self.emergencia_manual,
+                emergencia_manual=perfil.emergencia_manual,
                 datos_obsoletos=stale,
                 intervalo_llm_seg=25.0,
                 forzar_llm=forzar_llm,
             )
-            self.ultimo_resultado = resultado
-            self.ultimo_cabin_env = cabin_env
+            perfil.ultimo_resultado = resultado
+            perfil.ultimo_cabin_env = cabin_env
 
             fila = dict(lectura)
             fila["timestamp"] = resultado["timestamp"]
@@ -91,45 +200,89 @@ class EstadoConsola:
             fila["temp_central_est"] = resultado["temp_central_est"]
             fila["pi_o2_mmhg"] = cabin_env["pi_o2_mmhg"]
             fila["ppco2_mmhg"] = cabin_env["ppco2_mmhg"]
-            self.historico.append(fila)
-        elif forzar_llm and self.historico:
-            ultima = self.historico[-1]
+            perfil.historico.append(fila)
+        elif forzar_llm and perfil.historico:
+            ultima = perfil.historico[-1]
             lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
-            stale = bool(self.datos_manuales_obsoletos) or (not self.simulacion_activa)
-            self.ultimo_resultado = self.motor.evaluar(
+            stale = bool(perfil.datos_manuales_obsoletos) or (not self.simulacion_activa)
+            perfil.ultimo_resultado = self.motor.evaluar(
                 lectura=lectura,
-                cabin_env=self.ultimo_cabin_env,
-                emergencia_manual=self.emergencia_manual,
+                cabin_env=perfil.ultimo_cabin_env,
+                emergencia_manual=perfil.emergencia_manual,
                 datos_obsoletos=stale,
                 intervalo_llm_seg=25.0,
                 forzar_llm=True,
             )
 
+    def avanzar_tick(self, forzar_tick: bool = False, forzar_llm: bool = False) -> dict[str, Any]:
+        """Avanza un paso de telemetría para el tripulante activo."""
+        self._tick_perfil(self.perfil_activo, forzar_tick=forzar_tick, forzar_llm=forzar_llm)
         return self.snapshot()
+
+    def _resumen_tripulacion(self) -> list[dict[str, Any]]:
+        resumen: list[dict[str, Any]] = []
+        for cid, perfil in self.crew.items():
+            ultima = perfil.historico[-1]
+            lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
+            res = perfil.ultimo_resultado or {}
+            resumen.append(
+                {
+                    "id": cid,
+                    "name": perfil.meta["name"],
+                    "role": perfil.meta["role"],
+                    "height": perfil.meta["height"],
+                    "weight": perfil.meta["weight"],
+                    "bmi": perfil.meta["bmi"],
+                    "blood": perfil.meta["blood"],
+                    "skin": perfil.meta["skin"],
+                    "hair": perfil.meta["hair"],
+                    "nivel_nasa": res.get("nivel_nasa", "Nominal"),
+                    "protocolo_codigo": res.get("protocolo_codigo", "PROTO-NOM-00"),
+                    "temp_central_est": res.get("temp_central_est", 37.0),
+                    "bp_diastolic": estimar_presion_diastolica(lectura["presion_sistolica"]),
+                    "radiation_rate": round(perfil.radiation_rate, 2),
+                    "radiation_total": round(perfil.radiation_total, 1),
+                    "pvt_ms": perfil.pvt_ms,
+                    "datos_manuales_obsoletos": perfil.datos_manuales_obsoletos,
+                    "emergencia_manual": perfil.emergencia_manual,
+                    "lectura": lectura,
+                }
+            )
+        return resumen
 
     def snapshot(self) -> dict[str, Any]:
         """Construye el payload JSON completo para el frontend React."""
-        ultima = self.historico[-1]
+        p = self.perfil_activo
+        ultima = p.historico[-1]
         lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
         return {
+            "active_crew_id": self.active_crew_id,
+            "mission_day": self.mission_day,
+            "crew_roster": self._resumen_tripulacion(),
             "lectura": lectura,
-            "cabin_env": self.ultimo_cabin_env,
-            "resultado": self.ultimo_resultado,
-            "historico": list(self.historico),
+            "extras": {
+                "bp_diastolic": estimar_presion_diastolica(lectura["presion_sistolica"]),
+                "radiation_rate": round(p.radiation_rate, 2),
+                "radiation_total": round(p.radiation_total, 1),
+                "pvt_ms": p.pvt_ms,
+            },
+            "cabin_env": p.ultimo_cabin_env,
+            "resultado": p.ultimo_resultado,
+            "historico": list(p.historico),
             "ui_state": {
                 "simulacion_activa": self.simulacion_activa,
-                "emergencia_manual": self.emergencia_manual,
-                "alarma_silenciada": self.alarma_silenciada,
-                "parpadeo_detenido": self.parpadeo_detenido,
-                "alerta_reconocida": self.alerta_reconocida,
-                "datos_manuales_obsoletos": self.datos_manuales_obsoletos,
-                "ultimo_registro_manual_ts": self.ultimo_registro_manual_ts,
-                "escenario_actual": self.simulador.escenario_actual,
-                "escenario_label": ESCENARIOS_OBJETIVO[self.simulador.escenario_actual]["label"],
-                "rutina_diaria": self.rutina_diaria,
-                "racha_dias": self.racha_dias,
-                "bitacora_acciones": self.bitacora_acciones[:12],
-                "alertas_inhibidas": self.alertas_inhibidas,
+                "emergencia_manual": p.emergencia_manual,
+                "alarma_silenciada": p.alarma_silenciada,
+                "parpadeo_detenido": p.parpadeo_detenido,
+                "alerta_reconocida": p.alerta_reconocida,
+                "datos_manuales_obsoletos": p.datos_manuales_obsoletos,
+                "ultimo_registro_manual_ts": p.ultimo_registro_manual_ts,
+                "escenario_actual": p.simulador.escenario_actual,
+                "escenario_label": ESCENARIOS_OBJETIVO[p.simulador.escenario_actual]["label"],
+                "rutina_diaria": p.rutina_diaria,
+                "racha_dias": p.racha_dias,
+                "bitacora_acciones": p.bitacora_acciones[:14],
+                "alertas_inhibidas": p.alertas_inhibidas,
             },
             "escenarios": {k: v["label"] for k, v in ESCENARIOS_OBJETIVO.items()},
             "etiquetas": ETIQUETAS_LEGIBLES,
@@ -141,13 +294,16 @@ class EstadoConsola:
 
     def generar_paquete_store_and_forward(self) -> str:
         """Genera expediente JSON verificable con hash SHA-256 (V1 6002, V2 10125)."""
-        ultima = self.historico[-1]
+        p = self.perfil_activo
+        ultima = p.historico[-1]
         lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
-        res = self.ultimo_resultado or {}
+        res = p.ultimo_resultado or {}
         payload = {
             "schema": "MecaSpace-StoreAndForward-v2",
             "standard_ref": "NASA-STD-3001 Vol.1 Rev.C (V1 3004.a, V1 6002) & Vol.2 Rev.E (V2 10125)",
-            "mission_context": "Tránsito a Marte | Latencia 20 min/sentido",
+            "mission_context": f"Tránsito a Marte | Día {self.mission_day} | Latencia 20 min/sentido",
+            "crew_member": p.meta["name"],
+            "crew_role": p.meta["role"],
             "generated_utc": datetime.now(timezone.utc).isoformat(),
             "nasa_alert_level": res.get("nivel_nasa"),
             "protocolo_codigo": res.get("protocolo_codigo"),
@@ -155,10 +311,13 @@ class EstadoConsola:
             "diagnostico": res.get("diagnostico"),
             "temp_cutanea_c": lectura["temp_corporal"],
             "temp_central_estimada_c": res.get("temp_central_est"),
+            "radiacion_mSv_dia": round(p.radiation_rate, 2),
+            "radiacion_acumulada_mSv": round(p.radiation_total, 1),
+            "pvt_ms": p.pvt_ms,
             "telemetria": lectura,
-            "cabina": self.ultimo_cabin_env,
+            "cabina": p.ultimo_cabin_env,
             "top3_shap": res.get("top3_shap", []),
-            "acciones_ejecutadas": self.bitacora_acciones[:12],
+            "acciones_ejecutadas": p.bitacora_acciones[:14],
         }
         raw = json.dumps(payload, sort_keys=True, ensure_ascii=False).encode("utf-8")
         payload["sha256_integrity"] = hashlib.sha256(raw).hexdigest()
@@ -233,7 +392,7 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
             )
             return
 
-        rel = path.lstrip("/") or "index.html"
+        rel = urllib.parse.unquote(path.lstrip("/")) or "index.html"
         target = (FRONTEND_DIST_DIR / rel).resolve()
         if not str(target).startswith(str(FRONTEND_DIST_DIR.resolve())) or not target.is_file():
             target = FRONTEND_DIST_DIR / "index.html"
@@ -256,28 +415,93 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
             return
 
         with ESTADO.lock:
+            p = ESTADO.perfil_activo
+
+            if path == "/api/crew":
+                cid = str(body.get("crew_id", "koch"))
+                if cid not in ESTADO.crew:
+                    self._send_json(400, {"error": f"Tripulante desconocido: {cid}"})
+                    return
+                ESTADO.active_crew_id = cid
+                data = ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
+                self._send_json(200, data)
+                return
+
             if path == "/api/scenario":
                 esc = str(body.get("escenario", "nominal"))
                 if esc not in ESCENARIOS_OBJETIVO:
                     self._send_json(400, {"error": f"Escenario desconocido: {esc}"})
                     return
-                ESTADO.emergencia_manual = False
-                ESTADO.alerta_reconocida = False
-                ESTADO.parpadeo_detenido = False
-                ESTADO.datos_manuales_obsoletos = False
-                ESTADO.simulador.activar_escenario(esc, inmediato=True)
+                p.emergencia_manual = False
+                p.alerta_reconocida = False
+                p.parpadeo_detenido = False
+                p.datos_manuales_obsoletos = False
+                p.simulador.activar_escenario(esc, inmediato=True)
                 data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
                 self._send_json(200, data)
                 return
 
+            if path == "/api/adjust":
+                action = body.get("action")
+                if action == "advance_day":
+                    ESTADO.mission_day += 1
+                    for member in ESTADO.crew.values():
+                        member.radiation_total = round(member.radiation_total + member.radiation_rate, 1)
+                    ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+                    p.bitacora_acciones.insert(0, f"[{ts}] Día de tránsito {ESTADO.mission_day} registrado")
+                    data = ESTADO.snapshot()
+                    self._send_json(200, data)
+                    return
+
+                var = str(body.get("var", ""))
+                delta = body.get("delta")
+                value = body.get("value")
+
+                if var == "radiation_rate":
+                    cur = p.radiation_rate
+                    nxt = float(value) if value is not None else cur + float(delta or 0.0)
+                    p.radiation_rate = round(max(0.20, min(2.40, nxt)), 2)
+                    self._send_json(200, ESTADO.snapshot())
+                    return
+
+                if var == "pvt_ms":
+                    cur = p.pvt_ms
+                    nxt = float(value) if value is not None else cur + float(delta or 0.0)
+                    p.pvt_ms = int(round(max(140, min(650, nxt))))
+                    self._send_json(200, ESTADO.snapshot())
+                    return
+
+                if var in FEATURE_NAMES:
+                    cur = float(p.simulador.valores_actuales[var])
+                    nxt = float(value) if value is not None else cur + float(delta or 0.0)
+                    lim_min, lim_max = LIMITES_FISICOS[var]
+                    clamped = float(max(lim_min, min(lim_max, nxt)))
+                    p.simulador.valores_actuales[var] = clamped
+                    p.simulador._objetivo_actual[var] = clamped
+                    if var in {"glucemia", "estado_animo"}:
+                        p.datos_manuales_obsoletos = False
+                        p.ultimo_registro_manual_ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+                    data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
+                    self._send_json(200, data)
+                    return
+
+                self._send_json(400, {"error": f"Variable no ajustable: {var}"})
+                return
+
             if path == "/api/emergency":
                 active = bool(body.get("active", True))
-                ESTADO.emergencia_manual = active
+                p.emergencia_manual = active
                 if active:
-                    ESTADO.parpadeo_detenido = False
-                    ESTADO.alerta_reconocida = False
-                    ESTADO.alarma_silenciada = False
-                    ESTADO.simulador.inyectar_sobrecarga_cardiovascular(critica=True)
+                    p.parpadeo_detenido = False
+                    p.alerta_reconocida = False
+                    p.alarma_silenciada = False
+                    p.simulador.inyectar_sobrecarga_cardiovascular(critica=True)
+                    ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+                    p.bitacora_acciones.insert(0, f"[{ts}] SOS Torácico manual activado (V2 10178)")
+                else:
+                    p.simulador.restaurar_nominal(inmediato=True)
+                    ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+                    p.bitacora_acciones.insert(0, f"[{ts}] Emergencia manual desactivada → retorno nominal")
                 data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
                 self._send_json(200, data)
                 return
@@ -285,35 +509,45 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
             if path == "/api/alarm":
                 action = body.get("action")
                 if action == "silence":
-                    ESTADO.alarma_silenciada = not ESTADO.alarma_silenciada
-                    ESTADO.parpadeo_detenido = True
+                    p.alarma_silenciada = not p.alarma_silenciada
+                    p.parpadeo_detenido = True
                 elif action == "ack":
-                    ESTADO.alerta_reconocida = True
-                    ESTADO.parpadeo_detenido = True
+                    p.alerta_reconocida = True
+                    p.parpadeo_detenido = True
                 elif action == "stop_flash":
-                    ESTADO.parpadeo_detenido = True
+                    p.parpadeo_detenido = True
+                self._send_json(200, ESTADO.snapshot())
+                return
+
+            if path == "/api/inhibit":
+                key = str(body.get("key", "")).strip()
+                if key:
+                    if key in p.alertas_inhibidas:
+                        p.alertas_inhibidas.remove(key)
+                    else:
+                        p.alertas_inhibidas.append(key)
                 self._send_json(200, ESTADO.snapshot())
                 return
 
             if path == "/api/manual":
                 if body.get("toggle_stale"):
-                    ESTADO.datos_manuales_obsoletos = not ESTADO.datos_manuales_obsoletos
+                    p.datos_manuales_obsoletos = not p.datos_manuales_obsoletos
                     data = ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
                     self._send_json(200, data)
                     return
 
                 gluc = body.get("glucemia")
                 animo = body.get("estado_animo")
-                ESTADO.simulador.registrar_entrada_manual(
+                p.simulador.registrar_entrada_manual(
                     glucemia=float(gluc) if gluc is not None else None,
                     estado_animo=float(animo) if animo is not None else None,
                 )
-                ESTADO.datos_manuales_obsoletos = False
-                ESTADO.ultimo_registro_manual_ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+                p.datos_manuales_obsoletos = False
+                p.ultimo_registro_manual_ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
                 if gluc is not None:
-                    ESTADO.rutina_diaria["glucemia"] = True
+                    p.rutina_diaria["glucemia"] = True
                 if animo is not None:
-                    ESTADO.rutina_diaria["animo"] = True
+                    p.rutina_diaria["animo"] = True
                 data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
                 self._send_json(200, data)
                 return
@@ -321,25 +555,25 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
             if path == "/api/intervention":
                 tipo = str(body.get("tipo", ""))
                 etiqueta = str(body.get("etiqueta", tipo))
-                resumen = ESTADO.simulador.aplicar_intervencion(tipo)
+                resumen = p.simulador.aplicar_intervencion(tipo)
                 ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                ESTADO.bitacora_acciones.insert(0, f"[{ts}] {etiqueta} — {resumen}")
-                if tipo in {"rcp_dea", "reposo_cv"} and ESTADO.emergencia_manual:
-                    ESTADO.emergencia_manual = False
+                p.bitacora_acciones.insert(0, f"[{ts}] {etiqueta} — {resumen}")
+                if tipo in {"rcp_dea", "reposo_cv"} and p.emergencia_manual:
+                    p.emergencia_manual = False
                 if tipo == "glucosa_oral":
-                    ESTADO.rutina_diaria["glucemia"] = True
+                    p.rutina_diaria["glucemia"] = True
                 elif tipo == "protocolo_conductual":
-                    ESTADO.rutina_diaria["animo"] = True
+                    p.rutina_diaria["animo"] = True
                 elif tipo == "iluminacion_descanso":
-                    ESTADO.rutina_diaria["sueno"] = True
+                    p.rutina_diaria["sueno"] = True
                 data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
                 self._send_json(200, data)
                 return
 
             if path == "/api/routine":
                 key = str(body.get("key", ""))
-                if key in ESTADO.rutina_diaria:
-                    ESTADO.rutina_diaria[key] = not ESTADO.rutina_diaria[key]
+                if key in p.rutina_diaria:
+                    p.rutina_diaria[key] = not p.rutina_diaria[key]
                 self._send_json(200, ESTADO.snapshot())
                 return
 
@@ -350,7 +584,7 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
                     self._send_json(200, ESTADO.snapshot())
                     return
                 if action == "clear_history":
-                    ESTADO.historico.clear()
+                    p.historico.clear()
                     data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=False)
                     self._send_json(200, data)
                     return
@@ -362,12 +596,12 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
             if path == "/api/chat":
                 pregunta = str(body.get("pregunta", "")).strip()
                 historial = body.get("historial", [])
-                ultima = ESTADO.historico[-1]
+                ultima = p.historico[-1]
                 lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
                 resp = ESTADO.motor.consultar_asistente_interactivo(
                     pregunta=pregunta,
                     lectura=lectura,
-                    resultado_actual=ESTADO.ultimo_resultado,
+                    resultado_actual=p.ultimo_resultado,
                     historial_chat=historial if isinstance(historial, list) else [],
                 )
                 self._send_json(200, resp)
