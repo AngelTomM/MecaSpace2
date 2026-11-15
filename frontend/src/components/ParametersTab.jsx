@@ -1,12 +1,14 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   METRIC_META,
   PARAM_ORDER,
   PROTOCOL_DICTIONARY,
   SYMPTOM_PROTOCOLS,
   extractUiMetrics,
+  getSeverityColor,
   getTrendArrow,
 } from "../data/nasaProtocols";
+import BreathingGuide from "./BreathingGuide";
 import { MetricIcon } from "./Icons";
 
 export default function ParametersTab({
@@ -28,17 +30,6 @@ export default function ParametersTab({
   const [completedSteps, setCompletedSteps] = useState({});
   const [cvAnswer, setCvAnswer] = useState(null);
 
-  // Respiración guiada 4-4-6
-  const [breathRunning, setBreathRunning] = useState(false);
-  const [breathState, setBreathState] = useState({
-    label: "Listo",
-    secs: "4-4-6",
-    scale: 0.88,
-    bg: "rgba(16, 185, 129, 0.25)",
-    border: "#10B981",
-  });
-  const breathTimerRef = useRef(null);
-
   useEffect(() => {
     if (!focusedMetric) return;
     const el = document.getElementById(`param-box-${focusedMetric}`);
@@ -49,57 +40,6 @@ export default function ParametersTab({
       el.classList.add("card-highlight-pulse");
     }
   }, [focusedMetric]);
-
-  useEffect(() => {
-    return () => {
-      if (breathTimerRef.current) clearInterval(breathTimerRef.current);
-    };
-  }, []);
-
-  const toggleBreathing = () => {
-    if (breathRunning) {
-      clearInterval(breathTimerRef.current);
-      setBreathRunning(false);
-      setBreathState({
-        label: "Listo",
-        secs: "4-4-6",
-        scale: 0.88,
-        bg: "rgba(16, 185, 129, 0.25)",
-        border: "#10B981",
-      });
-      return;
-    }
-
-    setBreathRunning(true);
-    const cycle = [
-      { label: "Inhalar", sec: 4, scale: 1.16, bg: "rgba(16, 185, 129, 0.35)", border: "#10B981" },
-      { label: "Sostener", sec: 4, scale: 1.16, bg: "rgba(234, 179, 8, 0.35)", border: "#EAB308" },
-      { label: "Exhalar", sec: 6, scale: 0.82, bg: "rgba(37, 99, 235, 0.35)", border: "#60A5FA" },
-    ];
-    let idx = 0;
-    let rem = cycle[0].sec;
-
-    const paint = () => {
-      const c = cycle[idx];
-      setBreathState({
-        label: c.label,
-        secs: `${rem}s`,
-        scale: c.scale,
-        bg: c.bg,
-        border: c.border,
-      });
-    };
-    paint();
-
-    breathTimerRef.current = setInterval(() => {
-      rem -= 1;
-      if (rem <= 0) {
-        idx = (idx + 1) % cycle.length;
-        rem = cycle[idx].sec;
-      }
-      paint();
-    }, 1000);
-  };
 
   const m = extractUiMetrics(data);
   const lec = data.lectura || {};
@@ -126,13 +66,6 @@ export default function ParametersTab({
   ];
 
   const doneCount = Object.values(completedSteps).filter(Boolean).length;
-
-  const arrowColor = (st) => {
-    if (st.severity >= 3) return "#EF4444";
-    if (st.severity === 2) return "#EAB308";
-    if (st.key === "stale") return "#06B6D4";
-    return "#2563EB";
-  };
 
   const top3 = res.top3_shap || [];
   const maxAbsShap = Math.max(...top3.map((t) => Math.abs(t.shap_valor)), 0.1);
@@ -253,7 +186,7 @@ export default function ParametersTab({
                     {val}
                   </span>
                   {dir && st.severity > 0 && (
-                    <span style={{ fontSize: "14px", fontWeight: 800, color: arrowColor(st) }}>
+                    <span style={{ fontSize: "14px", fontWeight: 800, color: getSeverityColor(st) }}>
                       {dir === "up" ? "↑" : "↓"}
                     </span>
                   )}
@@ -776,47 +709,7 @@ export default function ParametersTab({
             </div>
 
             {/* Orbe Respiración Guiada 4-4-6 */}
-            <div
-              style={{
-                borderRadius: "16px",
-                background: "rgba(30, 41, 59, 0.85)",
-                border: "1px solid #334155",
-                padding: "14px",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: "12px",
-              }}
-            >
-              <div>
-                <span className="mono" style={{ fontSize: "10px", fontWeight: 800, color: "#34D399", textTransform: "uppercase" }}>
-                  Autorregulación
-                </span>
-                <h4 style={{ margin: "2px 0", fontSize: "14px", fontWeight: 800 }}>Respiración Guiada 4-4-6</h4>
-                <p style={{ margin: "0 0 8px", fontSize: "11px", color: "#CBD5E1" }}>
-                  Inhalar 4s · Sostener 4s · Exhalar 6s
-                </p>
-                <button
-                  type="button"
-                  className={`pill-btn sm ${breathRunning ? "dark" : "green"}`}
-                  onClick={toggleBreathing}
-                >
-                  {breathRunning ? "Detener" : "Iniciar 4-4-6"}
-                </button>
-              </div>
-
-              <div
-                className="breathing-orb"
-                style={{
-                  transform: `scale(${breathState.scale})`,
-                  backgroundColor: breathState.bg,
-                  borderColor: breathState.border,
-                }}
-              >
-                <span style={{ fontSize: "11px", fontWeight: 800, color: "#FFFFFF" }}>{breathState.label}</span>
-                <span className="mono" style={{ fontSize: "11px", color: "#6EE7B7" }}>{breathState.secs}</span>
-              </div>
-            </div>
+            <BreathingGuide />
           </div>
         </div>
       </div>

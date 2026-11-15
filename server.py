@@ -33,6 +33,16 @@ BASE_DIR = Path(__file__).resolve().parent
 FRONTEND_DIST_DIR = BASE_DIR / "frontend" / "dist"
 MODEL_PATH = BASE_DIR / "modelo_xgb.json"
 
+DEFAULT_HOST = "127.0.0.1"
+DEFAULT_PORT = 8000
+HISTORY_MAXLEN = 90
+BITACORA_EXPORT_LIMIT = 14
+LLM_INTERVAL_SEC = 25.0
+RADIATION_RATE_BOUNDS = (0.20, 2.40)
+PVT_MS_BOUNDS = (140, 650)
+DIASTOLIC_BOUNDS = (45, 118)
+CREW_META_KEYS = ("id", "name", "role", "height", "weight", "bmi", "blood", "skin", "hair")
+
 CREW_TEMPLATES: dict[str, dict[str, Any]] = {
     "koch": {
         "id": "koch",
@@ -120,13 +130,13 @@ class PerfilTripulante:
             self.simulador.valores_actuales[var] = float(val)
             self.simulador._objetivo_actual[var] = float(val)
 
-        self.historico: deque[dict[str, Any]] = deque(maxlen=90)
+        self.historico: deque[dict[str, Any]] = deque(maxlen=HISTORY_MAXLEN)
         self.emergencia_manual = False
         self.alarma_silenciada = False
         self.parpadeo_detenido = False
         self.alerta_reconocida = False
         self.datos_manuales_obsoletos = False
-        self.ultimo_registro_manual_ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+        self.ultimo_registro_manual_ts = _hora_local_actual()
         self.rutina_diaria: dict[str, bool] = {
             "glucemia": True,
             "animo": True,
@@ -143,10 +153,25 @@ class PerfilTripulante:
         self.ultimo_cabin_env: dict[str, float] = self.simulador.obtener_entorno_cabina()
 
 
+def _clamp(value: float, low: float, high: float) -> float:
+    """Restringe un valor numérico al intervalo [low, high]."""
+    return float(max(low, min(high, value)))
+
+
+def _hora_local_actual() -> str:
+    """Devuelve la hora local formateada HH:MM:SS."""
+    return datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
+
+
+def registrar_bitacora(perfil: PerfilTripulante, mensaje: str) -> None:
+    """Inserta un evento con marca horaria al inicio de la bitácora del tripulante."""
+    perfil.bitacora_acciones.insert(0, f"[{_hora_local_actual()}] {mensaje}")
+
+
 def estimar_presion_diastolica(presion_sistolica: float) -> int:
     """Estima la presión diastólica coherente con la sistólica para despliegue clínico."""
     dia = round(52.0 + (float(presion_sistolica) - 80.0) * 0.52)
-    return int(max(45, min(118, dia)))
+    return int(_clamp(dia, *DIASTOLIC_BOUNDS))
 
 
 class EstadoConsola:
@@ -188,7 +213,7 @@ class EstadoConsola:
                 cabin_env=cabin_env,
                 emergencia_manual=perfil.emergencia_manual,
                 datos_obsoletos=stale,
-                intervalo_llm_seg=25.0,
+                intervalo_llm_seg=LLM_INTERVAL_SEC,
                 forzar_llm=forzar_llm,
             )
             perfil.ultimo_resultado = resultado
@@ -210,7 +235,7 @@ class EstadoConsola:
                 cabin_env=perfil.ultimo_cabin_env,
                 emergencia_manual=perfil.emergencia_manual,
                 datos_obsoletos=stale,
-                intervalo_llm_seg=25.0,
+                intervalo_llm_seg=LLM_INTERVAL_SEC,
                 forzar_llm=True,
             )
 
@@ -225,17 +250,10 @@ class EstadoConsola:
             ultima = perfil.historico[-1]
             lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
             res = perfil.ultimo_resultado or {}
-            resumen.append(
+            item = {k: perfil.meta[k] for k in CREW_META_KEYS}
+            item.update(
                 {
                     "id": cid,
-                    "name": perfil.meta["name"],
-                    "role": perfil.meta["role"],
-                    "height": perfil.meta["height"],
-                    "weight": perfil.meta["weight"],
-                    "bmi": perfil.meta["bmi"],
-                    "blood": perfil.meta["blood"],
-                    "skin": perfil.meta["skin"],
-                    "hair": perfil.meta["hair"],
                     "nivel_nasa": res.get("nivel_nasa", "Nominal"),
                     "protocolo_codigo": res.get("protocolo_codigo", "PROTO-NOM-00"),
                     "temp_central_est": res.get("temp_central_est", 37.0),
@@ -248,6 +266,7 @@ class EstadoConsola:
                     "lectura": lectura,
                 }
             )
+            resumen.append(item)
         return resumen
 
     def snapshot(self) -> dict[str, Any]:
@@ -335,14 +354,17 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
         return
 
+    def _send_cors_headers(self) -> None:
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+
     def _send_json(self, status: int, data: Any) -> None:
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self._send_cors_headers()
         self.end_headers()
         self.wfile.write(body)
 
@@ -355,9 +377,7 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self) -> None:  # noqa: N802
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self._send_cors_headers()
         self.end_headers()
 
     def do_GET(self) -> None:  # noqa: N802
@@ -406,211 +426,191 @@ class MecaSpaceHandler(BaseHTTPRequestHandler):
         self.wfile.write(content)
 
     def do_POST(self) -> None:  # noqa: N802
-        parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
+        path = urllib.parse.urlparse(self.path).path
         try:
             body = self._read_json_body()
         except ValueError:
             self._send_json(400, {"error": "JSON inválido"})
             return
 
+        routes = {
+            "/api/crew": self._post_crew,
+            "/api/scenario": self._post_scenario,
+            "/api/adjust": self._post_adjust,
+            "/api/emergency": self._post_emergency,
+            "/api/alarm": self._post_alarm,
+            "/api/inhibit": self._post_inhibit,
+            "/api/manual": self._post_manual,
+            "/api/intervention": self._post_intervention,
+            "/api/routine": self._post_routine,
+            "/api/control": self._post_control,
+            "/api/chat": self._post_chat,
+        }
+        handler = routes.get(path)
+        if handler is None:
+            self._send_json(404, {"error": f"Endpoint no encontrado: {path}"})
+            return
+
         with ESTADO.lock:
-            p = ESTADO.perfil_activo
+            status, payload = handler(ESTADO.perfil_activo, body)
+        self._send_json(status, payload)
 
-            if path == "/api/crew":
-                cid = str(body.get("crew_id", "koch"))
-                if cid not in ESTADO.crew:
-                    self._send_json(400, {"error": f"Tripulante desconocido: {cid}"})
-                    return
-                ESTADO.active_crew_id = cid
-                data = ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
-                self._send_json(200, data)
-                return
+    def _post_crew(self, _p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        cid = str(body.get("crew_id", "koch"))
+        if cid not in ESTADO.crew:
+            return 400, {"error": f"Tripulante desconocido: {cid}"}
+        ESTADO.active_crew_id = cid
+        return 200, ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
 
-            if path == "/api/scenario":
-                esc = str(body.get("escenario", "nominal"))
-                if esc not in ESCENARIOS_OBJETIVO:
-                    self._send_json(400, {"error": f"Escenario desconocido: {esc}"})
-                    return
-                p.emergencia_manual = False
-                p.alerta_reconocida = False
-                p.parpadeo_detenido = False
+    def _post_scenario(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        esc = str(body.get("escenario", "nominal"))
+        if esc not in ESCENARIOS_OBJETIVO:
+            return 400, {"error": f"Escenario desconocido: {esc}"}
+        p.emergencia_manual = False
+        p.alerta_reconocida = False
+        p.parpadeo_detenido = False
+        p.datos_manuales_obsoletos = False
+        p.simulador.activar_escenario(esc, inmediato=True)
+        return 200, ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
+
+    def _post_adjust(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        if body.get("action") == "advance_day":
+            ESTADO.mission_day += 1
+            for member in ESTADO.crew.values():
+                member.radiation_total = round(member.radiation_total + member.radiation_rate, 1)
+            registrar_bitacora(p, f"Día de tránsito {ESTADO.mission_day} registrado")
+            return 200, ESTADO.snapshot()
+
+        var = str(body.get("var", ""))
+        delta = body.get("delta")
+        value = body.get("value")
+
+        if var == "radiation_rate":
+            nxt = float(value) if value is not None else p.radiation_rate + float(delta or 0.0)
+            p.radiation_rate = round(_clamp(nxt, *RADIATION_RATE_BOUNDS), 2)
+            return 200, ESTADO.snapshot()
+
+        if var == "pvt_ms":
+            nxt = float(value) if value is not None else p.pvt_ms + float(delta or 0.0)
+            p.pvt_ms = int(round(_clamp(nxt, *PVT_MS_BOUNDS)))
+            return 200, ESTADO.snapshot()
+
+        if var in FEATURE_NAMES:
+            cur = float(p.simulador.valores_actuales[var])
+            nxt = float(value) if value is not None else cur + float(delta or 0.0)
+            clamped = _clamp(nxt, *LIMITES_FISICOS[var])
+            p.simulador.valores_actuales[var] = clamped
+            p.simulador._objetivo_actual[var] = clamped
+            if var in {"glucemia", "estado_animo"}:
                 p.datos_manuales_obsoletos = False
-                p.simulador.activar_escenario(esc, inmediato=True)
-                data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
-                self._send_json(200, data)
-                return
+                p.ultimo_registro_manual_ts = _hora_local_actual()
+            return 200, ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
 
-            if path == "/api/adjust":
-                action = body.get("action")
-                if action == "advance_day":
-                    ESTADO.mission_day += 1
-                    for member in ESTADO.crew.values():
-                        member.radiation_total = round(member.radiation_total + member.radiation_rate, 1)
-                    ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                    p.bitacora_acciones.insert(0, f"[{ts}] Día de tránsito {ESTADO.mission_day} registrado")
-                    data = ESTADO.snapshot()
-                    self._send_json(200, data)
-                    return
+        return 400, {"error": f"Variable no ajustable: {var}"}
 
-                var = str(body.get("var", ""))
-                delta = body.get("delta")
-                value = body.get("value")
+    def _post_emergency(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        active = bool(body.get("active", True))
+        p.emergencia_manual = active
+        if active:
+            p.parpadeo_detenido = False
+            p.alerta_reconocida = False
+            p.alarma_silenciada = False
+            p.simulador.inyectar_sobrecarga_cardiovascular(critica=True)
+            registrar_bitacora(p, "SOS Torácico manual activado (V2 10178)")
+        else:
+            p.simulador.restaurar_nominal(inmediato=True)
+            registrar_bitacora(p, "Emergencia manual desactivada → retorno nominal")
+        return 200, ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
 
-                if var == "radiation_rate":
-                    cur = p.radiation_rate
-                    nxt = float(value) if value is not None else cur + float(delta or 0.0)
-                    p.radiation_rate = round(max(0.20, min(2.40, nxt)), 2)
-                    self._send_json(200, ESTADO.snapshot())
-                    return
+    def _post_alarm(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        action = body.get("action")
+        if action == "silence":
+            p.alarma_silenciada = not p.alarma_silenciada
+            p.parpadeo_detenido = True
+        elif action == "ack":
+            p.alerta_reconocida = True
+            p.parpadeo_detenido = True
+        elif action == "stop_flash":
+            p.parpadeo_detenido = True
+        return 200, ESTADO.snapshot()
 
-                if var == "pvt_ms":
-                    cur = p.pvt_ms
-                    nxt = float(value) if value is not None else cur + float(delta or 0.0)
-                    p.pvt_ms = int(round(max(140, min(650, nxt))))
-                    self._send_json(200, ESTADO.snapshot())
-                    return
+    def _post_inhibit(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        key = str(body.get("key", "")).strip()
+        if key:
+            if key in p.alertas_inhibidas:
+                p.alertas_inhibidas.remove(key)
+            else:
+                p.alertas_inhibidas.append(key)
+        return 200, ESTADO.snapshot()
 
-                if var in FEATURE_NAMES:
-                    cur = float(p.simulador.valores_actuales[var])
-                    nxt = float(value) if value is not None else cur + float(delta or 0.0)
-                    lim_min, lim_max = LIMITES_FISICOS[var]
-                    clamped = float(max(lim_min, min(lim_max, nxt)))
-                    p.simulador.valores_actuales[var] = clamped
-                    p.simulador._objetivo_actual[var] = clamped
-                    if var in {"glucemia", "estado_animo"}:
-                        p.datos_manuales_obsoletos = False
-                        p.ultimo_registro_manual_ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                    data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
-                    self._send_json(200, data)
-                    return
+    def _post_manual(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        if body.get("toggle_stale"):
+            p.datos_manuales_obsoletos = not p.datos_manuales_obsoletos
+            return 200, ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
 
-                self._send_json(400, {"error": f"Variable no ajustable: {var}"})
-                return
+        gluc = body.get("glucemia")
+        animo = body.get("estado_animo")
+        p.simulador.registrar_entrada_manual(
+            glucemia=float(gluc) if gluc is not None else None,
+            estado_animo=float(animo) if animo is not None else None,
+        )
+        p.datos_manuales_obsoletos = False
+        p.ultimo_registro_manual_ts = _hora_local_actual()
+        if gluc is not None:
+            p.rutina_diaria["glucemia"] = True
+        if animo is not None:
+            p.rutina_diaria["animo"] = True
+        return 200, ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
 
-            if path == "/api/emergency":
-                active = bool(body.get("active", True))
-                p.emergencia_manual = active
-                if active:
-                    p.parpadeo_detenido = False
-                    p.alerta_reconocida = False
-                    p.alarma_silenciada = False
-                    p.simulador.inyectar_sobrecarga_cardiovascular(critica=True)
-                    ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                    p.bitacora_acciones.insert(0, f"[{ts}] SOS Torácico manual activado (V2 10178)")
-                else:
-                    p.simulador.restaurar_nominal(inmediato=True)
-                    ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                    p.bitacora_acciones.insert(0, f"[{ts}] Emergencia manual desactivada → retorno nominal")
-                data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
-                self._send_json(200, data)
-                return
+    def _post_intervention(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        tipo = str(body.get("tipo", ""))
+        etiqueta = str(body.get("etiqueta", tipo))
+        resumen = p.simulador.aplicar_intervencion(tipo)
+        registrar_bitacora(p, f"{etiqueta} — {resumen}")
+        if tipo in {"rcp_dea", "reposo_cv"} and p.emergencia_manual:
+            p.emergencia_manual = False
+        routine_map = {
+            "glucosa_oral": "glucemia",
+            "protocolo_conductual": "animo",
+            "iluminacion_descanso": "sueno",
+        }
+        if tipo in routine_map:
+            p.rutina_diaria[routine_map[tipo]] = True
+        return 200, ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
 
-            if path == "/api/alarm":
-                action = body.get("action")
-                if action == "silence":
-                    p.alarma_silenciada = not p.alarma_silenciada
-                    p.parpadeo_detenido = True
-                elif action == "ack":
-                    p.alerta_reconocida = True
-                    p.parpadeo_detenido = True
-                elif action == "stop_flash":
-                    p.parpadeo_detenido = True
-                self._send_json(200, ESTADO.snapshot())
-                return
+    def _post_routine(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        key = str(body.get("key", ""))
+        if key in p.rutina_diaria:
+            p.rutina_diaria[key] = not p.rutina_diaria[key]
+        return 200, ESTADO.snapshot()
 
-            if path == "/api/inhibit":
-                key = str(body.get("key", "")).strip()
-                if key:
-                    if key in p.alertas_inhibidas:
-                        p.alertas_inhibidas.remove(key)
-                    else:
-                        p.alertas_inhibidas.append(key)
-                self._send_json(200, ESTADO.snapshot())
-                return
+    def _post_control(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        action = body.get("action")
+        if action == "toggle_play":
+            ESTADO.simulacion_activa = not ESTADO.simulacion_activa
+            return 200, ESTADO.snapshot()
+        if action == "clear_history":
+            p.historico.clear()
+            return 200, ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=False)
+        if action == "force_llm":
+            return 200, ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
+        return 400, {"error": f"Acción de control desconocida: {action}"}
 
-            if path == "/api/manual":
-                if body.get("toggle_stale"):
-                    p.datos_manuales_obsoletos = not p.datos_manuales_obsoletos
-                    data = ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
-                    self._send_json(200, data)
-                    return
-
-                gluc = body.get("glucemia")
-                animo = body.get("estado_animo")
-                p.simulador.registrar_entrada_manual(
-                    glucemia=float(gluc) if gluc is not None else None,
-                    estado_animo=float(animo) if animo is not None else None,
-                )
-                p.datos_manuales_obsoletos = False
-                p.ultimo_registro_manual_ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                if gluc is not None:
-                    p.rutina_diaria["glucemia"] = True
-                if animo is not None:
-                    p.rutina_diaria["animo"] = True
-                data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
-                self._send_json(200, data)
-                return
-
-            if path == "/api/intervention":
-                tipo = str(body.get("tipo", ""))
-                etiqueta = str(body.get("etiqueta", tipo))
-                resumen = p.simulador.aplicar_intervencion(tipo)
-                ts = datetime.now(timezone.utc).astimezone().strftime("%H:%M:%S")
-                p.bitacora_acciones.insert(0, f"[{ts}] {etiqueta} — {resumen}")
-                if tipo in {"rcp_dea", "reposo_cv"} and p.emergencia_manual:
-                    p.emergencia_manual = False
-                if tipo == "glucosa_oral":
-                    p.rutina_diaria["glucemia"] = True
-                elif tipo == "protocolo_conductual":
-                    p.rutina_diaria["animo"] = True
-                elif tipo == "iluminacion_descanso":
-                    p.rutina_diaria["sueno"] = True
-                data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=True)
-                self._send_json(200, data)
-                return
-
-            if path == "/api/routine":
-                key = str(body.get("key", ""))
-                if key in p.rutina_diaria:
-                    p.rutina_diaria[key] = not p.rutina_diaria[key]
-                self._send_json(200, ESTADO.snapshot())
-                return
-
-            if path == "/api/control":
-                action = body.get("action")
-                if action == "toggle_play":
-                    ESTADO.simulacion_activa = not ESTADO.simulacion_activa
-                    self._send_json(200, ESTADO.snapshot())
-                    return
-                if action == "clear_history":
-                    p.historico.clear()
-                    data = ESTADO.avanzar_tick(forzar_tick=True, forzar_llm=False)
-                    self._send_json(200, data)
-                    return
-                if action == "force_llm":
-                    data = ESTADO.avanzar_tick(forzar_tick=False, forzar_llm=True)
-                    self._send_json(200, data)
-                    return
-
-            if path == "/api/chat":
-                pregunta = str(body.get("pregunta", "")).strip()
-                historial = body.get("historial", [])
-                ultima = p.historico[-1]
-                lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
-                resp = ESTADO.motor.consultar_asistente_interactivo(
-                    pregunta=pregunta,
-                    lectura=lectura,
-                    resultado_actual=p.ultimo_resultado,
-                    historial_chat=historial if isinstance(historial, list) else [],
-                )
-                self._send_json(200, resp)
-                return
-
-        self._send_json(404, {"error": f"Endpoint no encontrado: {path}"})
+    def _post_chat(self, p: PerfilTripulante, body: dict[str, Any]) -> tuple[int, Any]:
+        pregunta = str(body.get("pregunta", "")).strip()
+        historial = body.get("historial", [])
+        ultima = p.historico[-1]
+        lectura = {k: float(ultima[k]) for k in FEATURE_NAMES}
+        resp = ESTADO.motor.consultar_asistente_interactivo(
+            pregunta=pregunta,
+            lectura=lectura,
+            resultado_actual=p.ultimo_resultado,
+            historial_chat=historial if isinstance(historial, list) else [],
+        )
+        return 200, resp
 
 
-def main(host: str = "127.0.0.1", port: int = 8000) -> None:
+def main(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT) -> None:
     """Inicia el servidor local MecaSpace."""
     httpd = ThreadingHTTPServer((host, port), MecaSpaceHandler)
     print(f"[MECASPACE] Consola disponible en: http://{host}:{port}")

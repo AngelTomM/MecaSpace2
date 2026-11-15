@@ -4,6 +4,7 @@ import {
   PRIMARY_METRICS,
   extractUiMetrics,
   getQuickMetricPlan,
+  getSeverityColor,
   getTrendArrow,
   pickHighestSeverity,
 } from "../data/nasaProtocols";
@@ -57,14 +58,6 @@ export default function SummaryTab({
       title: "Abdomen · Metabolismo, Temp y Radiación",
       text: `Glucemia ${Math.round(m.glucose)} mg/dL · Piel ${m.temp.toFixed(1)} °C / Central est. ${m.tempCentral.toFixed(2)} °C · Rad ${m.radiationTotal.toFixed(1)} mSv (${m.radiation.toFixed(2)}/d)`,
     },
-  };
-
-  const arrowColor = (st) => {
-    if (st.severity >= 3) return "#EF4444";
-    if (st.severity === 2) return "#EAB308";
-    if (st.key === "stale") return "#06B6D4";
-    if (st.severity === 1) return "#2563EB";
-    return "#10B981";
   };
 
   return (
@@ -561,7 +554,7 @@ export default function SummaryTab({
                           {value}
                         </span>
                         {dir && state.severity > 0 && (
-                          <span style={{ fontSize: "15px", fontWeight: 800, color: arrowColor(state) }}>
+                          <span style={{ fontSize: "15px", fontWeight: 800, color: getSeverityColor(state) }}>
                             {dir === "up" ? "↑" : "↓"}
                           </span>
                         )}

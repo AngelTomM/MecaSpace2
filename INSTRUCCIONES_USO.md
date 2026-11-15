@@ -16,8 +16,6 @@ c:\Users\ulica\Documents\GitHub\MecaSpace2\.venv\Scripts\python.exe server.py
 
 2. Abrir en el navegador web local: **http://127.0.0.1:8000**
 
-*(Modo alternativo heredado en Streamlit: `streamlit run app.py`.)*
-
 ---
 
 ## Estructura y Flujo de la Interfaz

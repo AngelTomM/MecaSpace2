@@ -879,3 +879,12 @@ export function buildAlertSystemFeed(data) {
     states,
   };
 }
+
+export function getSeverityColor(st) {
+  if (!st) return "#10B981";
+  if (st.severity >= 3) return "#EF4444";
+  if (st.severity === 2) return "#EAB308";
+  if (st.key === "stale") return "#06B6D4";
+  if (st.severity === 1) return "#2563EB";
+  return "#10B981";
+}
