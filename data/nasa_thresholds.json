@@ -1,160 +1,180 @@
 {
     "metadata": {
-        "standard": "NASA-STD-3001 Volume 2 (Human Factors, Habitability, and Environmental Health)",
+        "standard": "NASA-STD-3001 Vol. 1 Rev. C (2023) y Vol. 2 Rev. E (2025)",
+        "mission_profile": "Tránsito interplanetario a Marte (>30/60 días, microgravedad prolongada, entorno cerrado)",
         "sensors": [
-            "Astroskin Bio-Monitor",
-            "Actiwatch Spectrum"
+            "Astroskin Bio-Monitor (arquitectura seleccionada por el equipo)",
+            "Actiwatch Spectrum (arquitectura seleccionada por el equipo)",
+            "Glucómetro externo / entrada manual multimodal"
         ],
-        "communication_latency_min": 30,
+        "communication_latency_min": 20,
+        "communication_round_trip_min": 40,
+        "wearable_disclaimer": "ASTROSKIN y ACTIWATCH no figuran homologados en NASA-STD-3001; el equipo los selecciona para satisfacer V1 3004.h, V1 6001 y V2 9023.",
+        "clinical_threshold_disclaimer": "NASA-STD-3001 no fija umbrales numéricos individuales de reposo para presión arterial, frecuencia cardíaca, glucemia ni estado de ánimo; se emplean rangos clínicos operativos sobre línea base pre-misión (V1 3000, V1 4011, V1 4015-4017), junto con umbrales explícitos de norma (hipotermia central < 35 °C en Vol. 1 Apéndice C, sueño 8.5 h en V1 6001, P_I O2 y ppCO2 en V2 6003-6004).",
         "risk_classes": {
             "0": "Normal",
             "1": "Preventivo",
             "2": "Crítico"
+        },
+        "nasa_alert_hierarchy": {
+            "Emergency": "Rojo parpadeante (Tabla 10.3-1 / F.5-1) - Acción inmediata ante amenaza vital",
+            "Warning": "Rojo sólido (Tabla 10.3-1 / F.5-1) - Acción inmediata por riesgo de escalado crítico",
+            "Caution": "Amarillo (Tabla 10.3-1 / F.5-1) - Atención requerida, sin acción inmediata",
+            "Advisory": "Azul (Tabla 10.3-1 / F.5-1) - Aviso rutinario o desviación menor",
+            "Nominal": "Verde indicador (Tabla 10.4-3) - Operación nominal",
+            "Stale": "Cian (Tabla F.5-1 / V2 10020) - Datos faltantes u obsoletos"
         }
     },
     "biomarkers": {
         "presion_sistolica": {
             "unit": "mmHg",
-            "sensor": "Astroskin",
-            "normal": [
-                105.0,
-                125.0
-            ],
-            "preventivo_bajo": [
-                90.0,
-                104.9
-            ],
-            "preventivo_alto": [
-                125.1,
-                145.0
-            ],
+            "sensor": "Astroskin (estimación) / manguito clínico",
+            "indicador_consigna": "Presión arterial",
+            "normal": [105.0, 125.0],
+            "preventivo_bajo": [90.0, 104.9],
+            "preventivo_alto": [125.1, 145.0],
             "critico_bajo": 90.0,
-            "critico_alto": 145.0
+            "critico_alto": 145.0,
+            "nasa_ref": "V1 3004.h, Tabla E.2-2, V2 7042 (umbral clínico de referencia; sin cifra fija en 3001)"
         },
         "temp_corporal": {
             "unit": "°C",
-            "sensor": "Astroskin",
-            "normal": [
-                36.3,
-                37.4
-            ],
-            "preventivo_bajo": [
-                35.5,
-                36.2
-            ],
-            "preventivo_alto": [
-                37.5,
-                38.2
-            ],
-            "critico_bajo": 35.5,
-            "critico_alto": 38.2
+            "sensor": "Astroskin (temperatura cutánea)",
+            "indicador_consigna": "Temperatura corporal (piel)",
+            "normal": [35.6, 36.9],
+            "preventivo_bajo": [34.8, 35.59],
+            "preventivo_alto": [36.91, 37.6],
+            "critico_bajo": 34.8,
+            "critico_alto": 37.6,
+            "note": "Astroskin mide temperatura de piel; la norma Vol. 1 Apéndice C fija hipotermia en < 35.0 °C central y V2 11011 distingue deterioro térmico cutáneo (> +1.4 °C) del central (> +0.6 °C).",
+            "nasa_ref": "Vol. 1 Apéndice C (<35 °C central), V2 6014, V2 11011"
         },
         "nivel_actividad": {
-            "unit": "g-force_index",
-            "sensor": "Astroskin",
-            "normal": [
-                0.1,
-                1.8
-            ],
-            "preventivo_alto": [
-                1.81,
-                3.0
-            ],
+            "unit": "g-index",
+            "sensor": "Actiwatch / Astroskin",
+            "indicador_consigna": "Contexto esfuerzo físico",
+            "normal": [0.1, 1.8],
+            "preventivo_alto": [1.81, 3.0],
             "critico_alto": 3.0,
-            "note": "Valores > 3.0 en reposo o cabina indican temblor, convulsión o impacto brusco."
+            "note": "Valores > 3.0 en cabina o reposo sugieren temblor, convulsión o impacto; contextualiza esfuerzo físico (V2 10200).",
+            "nasa_ref": "V2 10200, V1 3004.h"
         },
         "spo2": {
             "unit": "%",
-            "sensor": "Astroskin",
-            "normal": [
-                96.0,
-                100.0
-            ],
-            "preventivo_bajo": [
-                92.0,
-                95.9
-            ],
-            "critico_bajo": 92.0
+            "sensor": "Astroskin (oximetría de pulso)",
+            "indicador_consigna": "Contexto hipoxia / oxigenación",
+            "normal": [96.0, 100.0],
+            "preventivo_bajo": [92.0, 95.9],
+            "critico_bajo": 92.0,
+            "nasa_ref": "V1 Rev. B 3.1.5.f (oximetría), V2 6003 (P_I O2), Tabla 6.2-1"
         },
         "frec_respiratoria": {
             "unit": "rpm",
             "sensor": "Astroskin",
-            "normal": [
-                12.0,
-                18.0
-            ],
-            "preventivo_bajo": [
-                9.0,
-                11.9
-            ],
-            "preventivo_alto": [
-                18.1,
-                24.0
-            ],
+            "indicador_consigna": "Contexto respiratorio / CO2",
+            "normal": [12.0, 18.0],
+            "preventivo_bajo": [9.0, 11.9],
+            "preventivo_alto": [18.1, 24.0],
             "critico_bajo": 9.0,
-            "critico_alto": 24.0
+            "critico_alto": 24.0,
+            "nasa_ref": "V1 3004.h, V2 6004 (ppCO2 <= 3 mmHg)"
         },
         "vol_respiratorio": {
             "unit": "L/min",
             "sensor": "Astroskin",
-            "normal": [
-                6.0,
-                10.5
-            ],
-            "preventivo_bajo": [
-                4.5,
-                5.9
-            ],
-            "preventivo_alto": [
-                10.6,
-                16.0
-            ],
+            "indicador_consigna": "Contexto ventilación",
+            "normal": [6.0, 10.5],
+            "preventivo_bajo": [4.5, 5.9],
+            "preventivo_alto": [10.6, 16.0],
             "critico_bajo": 4.5,
-            "critico_alto": 16.0
+            "critico_alto": 16.0,
+            "nasa_ref": "V1 3004.h, V2 6003-6004"
         },
         "frec_cardiaca": {
             "unit": "lpm",
-            "sensor": "Astroskin",
-            "normal": [
-                55.0,
-                95.0
-            ],
-            "preventivo_bajo": [
-                45.0,
-                54.9
-            ],
-            "preventivo_alto": [
-                95.1,
-                130.0
-            ],
+            "sensor": "Astroskin (pulso / ECG)",
+            "indicador_consigna": "Frecuencia cardíaca",
+            "normal": [55.0, 95.0],
+            "preventivo_bajo": [45.0, 54.9],
+            "preventivo_alto": [95.1, 130.0],
             "critico_bajo": 45.0,
-            "critico_alto": 130.0
+            "critico_alto": 130.0,
+            "nasa_ref": "V1 3004.h, Tabla E.2-2, V2 11011 (>140 bpm deterioro en traje EVA; referencia clínica en cabina)"
         },
         "anomalia_ecg": {
-            "unit": "index_0_to_1",
-            "sensor": "Astroskin",
-            "normal": [
-                0.0,
-                0.15
-            ],
-            "preventivo_alto": [
-                0.16,
-                0.35
-            ],
-            "critico_alto": 0.35
+            "unit": "índice 0-1",
+            "sensor": "Astroskin (ECG)",
+            "indicador_consigna": "Contexto arritmia / evento coronario",
+            "normal": [0.0, 0.15],
+            "preventivo_alto": [0.16, 0.35],
+            "critico_alto": 0.35,
+            "nasa_ref": "V1 3004.i (ECG), Tabla E.2-2 (síndrome coronario agudo / disritmias)"
         },
         "eficiencia_sueno": {
             "unit": "%",
-            "sensor": "Actiwatch",
-            "normal": [
-                80.0,
-                100.0
-            ],
-            "preventivo_bajo": [
-                65.0,
-                79.9
-            ],
-            "critico_bajo": 65.0
+            "sensor": "Actiwatch Spectrum",
+            "indicador_consigna": "Calidad de sueño",
+            "normal": [80.0, 100.0],
+            "preventivo_bajo": [65.0, 79.9],
+            "critico_bajo": 65.0,
+            "nasa_ref": "V1 6001, Tabla E.2-1 (insomnio tardío), V2 6079 (NC-40), V2 6092"
+        },
+        "glucemia": {
+            "unit": "mg/dL",
+            "sensor": "Entrada manual / glucómetro externo",
+            "indicador_consigna": "Azúcar en sangre",
+            "normal": [70.0, 140.0],
+            "preventivo_bajo": [55.0, 69.9],
+            "preventivo_alto": [140.1, 200.0],
+            "critico_bajo": 55.0,
+            "critico_alto": 200.0,
+            "nasa_ref": "Consigna (mg/dL), V1 4020, V2 8055 (desregulación metabólica/glucosa); rango clínico estándar V1 3000"
+        },
+        "horas_sueno": {
+            "unit": "h",
+            "sensor": "Actiwatch Spectrum",
+            "indicador_consigna": "Horas diarias de sueño",
+            "normal": [7.5, 9.5],
+            "preventivo_bajo": [6.0, 7.49],
+            "critico_bajo": 6.0,
+            "nasa_ref": "V1 6001 (período recomendado 8.5 h/día), V2 8055 (ciclo 24h / 24h40m Marte)"
+        },
+        "estado_animo": {
+            "unit": "pts (1-10)",
+            "sensor": "Autorreporte multimodal",
+            "indicador_consigna": "Estado de ánimo",
+            "normal": [6.5, 10.0],
+            "preventivo_bajo": [4.5, 6.49],
+            "critico_bajo": 4.5,
+            "nasa_ref": "Consigna, V1 3004.q (tratamiento conductual asíncrono), Tabla E.2-2 (*), V2 7071 (privacidad)"
+        }
+    },
+    "cabin_environment": {
+        "pi_o2_mmhg": {
+            "unit": "mmHg",
+            "normal": [145.0, 155.0],
+            "preventivo_bajo": 127.0,
+            "critico_bajo": 122.0,
+            "nasa_ref": "V2 6003, Tabla 6.2-1 (leve 127 mmHg, mínimo absoluto 1 h 122 mmHg)"
+        },
+        "ppco2_mmhg": {
+            "unit": "mmHg",
+            "normal": [0.0, 3.0],
+            "preventivo_alto": 3.0,
+            "critico_alto": 5.3,
+            "nasa_ref": "V2 6004 (ppCO2 <= 3 mmHg nominal)"
+        },
+        "cabin_temp_c": {
+            "unit": "°C",
+            "confort": [20.0, 25.0],
+            "envolvente": [18.0, 27.0],
+            "nasa_ref": "V2 6012-6014, Fig. 6.2-2"
+        },
+        "cabin_rh_pct": {
+            "unit": "% HR",
+            "confort": [30.0, 60.0],
+            "envolvente": [25.0, 75.0],
+            "nasa_ref": "V2 6012-6014, Fig. 6.2-2"
         }
     },
     "synergistic_critical_rules": [
@@ -164,13 +184,28 @@
             "assigned_class": 2
         },
         {
+            "condition": "Evento Coronario o Colapso Cardiovascular Agudo",
+            "trigger": "frec_cardiaca > 125.0 AND anomalia_ecg > 0.30 AND spo2 < 94.0",
+            "assigned_class": 2
+        },
+        {
             "condition": "Fatiga Circadiana Aguda",
             "trigger": "eficiencia_sueno < 72.0 AND anomalia_ecg > 0.20 AND frec_cardiaca > 100.0",
             "assigned_class": 2
         },
         {
-            "condition": "Estrés Térmico y Cardiovascular",
-            "trigger": "temp_corporal > 37.8 AND presion_sistolica > 135.0 AND frec_cardiaca > 115.0",
+            "condition": "Hipoglucemia por Privación de Sueño (V2 8055)",
+            "trigger": "horas_sueno < 6.5 AND eficiencia_sueno < 75.0 AND glucemia < 68.0",
+            "assigned_class": 2
+        },
+        {
+            "condition": "Hiperglucemia / Desregulación Endocrina por Privación de Sueño (V2 8055)",
+            "trigger": "horas_sueno < 6.5 AND eficiencia_sueno < 75.0 AND glucemia > 175.0",
+            "assigned_class": 2
+        },
+        {
+            "condition": "Estrés Térmico y Hemodinámico",
+            "trigger": "temp_corporal > 37.3 AND presion_sistolica > 135.0 AND frec_cardiaca > 115.0",
             "assigned_class": 2
         }
     ]

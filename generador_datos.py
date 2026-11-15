@@ -2,9 +2,10 @@
 Generador de dataset sintético calibrado (5.000 registros) para entrenamiento.
 
 Vincula:
-- Parámetros y correlaciones fisiológicas base desde `nasa_referencia.py` (NASA OSDR).
+- Parámetros y correlaciones fisiológicas base desde `nasa_referencia.py` (12 variables:
+  9 de wearables Astroskin/Actiwatch + glucemia, horas de sueño y estado de ánimo).
 - Etiquetado determinista leyendo explícitamente `data/nasa_thresholds.json`
-  (umbrales NASA-STD-3001 y reglas sinérgicas críticas).
+  (límites operativos y reglas sinérgicas críticas).
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from nasa_referencia import (
     FEATURE_NAMES,
     RISK_LABELS,
     asegurar_telemetry_base,
+    estimar_temp_central,
     obtener_referencias_osdr,
 )
 
@@ -67,19 +69,25 @@ def etiquetar_registro_desde_json(
 ) -> int:
     """
     Etiqueta un registro (`0: Normal`, `1: Preventivo`, `2: Crítico`)
-    estrictamente a partir de las reglas de `data/nasa_thresholds.json`.
+    estrictamente a partir de las reglas de `data/nasa_thresholds.json` y la
+    regla determinista de temperatura central estimada (< 35,0 °C).
     """
     biomarkers = thresholds_json["biomarkers"]
     reglas_sinergicas = thresholds_json.get("synergistic_critical_rules", [])
 
-    # 1. Evaluar reglas sinérgicas críticas
+    # 0. Hipotermia central estimada (< 35.0 °C según Vol. 1 Apéndice C)
+    temp_central = estimar_temp_central(fila["temp_corporal"], fila["nivel_actividad"])
+    if temp_central < 35.0:
+        return 2
+
+    # 1. Reglas sinérgicas críticas
     for regla in reglas_sinergicas:
         trigger = regla.get("trigger", "")
         clausulas = [c.strip() for c in trigger.split("AND") if c.strip()]
         if clausulas and all(_evaluar_clausula(fila, c) for c in clausulas):
             return int(regla.get("assigned_class", 2))
 
-    # 2. Evaluar límites individuales de NASA-STD-3001
+    # 2. Límites individuales
     es_preventivo = False
     for var in FEATURE_NAMES:
         val = float(fila[var])
@@ -95,7 +103,6 @@ def etiquetar_registro_desde_json(
             return 2
 
         if var == "nivel_actividad":
-            # En reposo profundo (<0.1) no se considera desviación preventiva por sí sola
             if val > float(norm_max):
                 es_preventivo = True
         else:
@@ -111,7 +118,7 @@ def _generar_bloque_nominal(
     base_df: pd.DataFrame,
     umbrales: dict[str, Any],
 ) -> list[dict[str, float]]:
-    """Genera muestras nominales ancladas en `telemetry_base.csv` y límites normales."""
+    """Genera muestras nominales ancladas en `telemetry_base.csv`."""
     b = umbrales["biomarkers"]
     indices = rng.integers(0, len(base_df), size=n)
     muestras: list[dict[str, float]] = []
@@ -120,6 +127,7 @@ def _generar_bloque_nominal(
         ref = base_df.iloc[idx]
         act = float(np.clip(ref["nivel_actividad"] + rng.normal(0.0, 0.18), 0.12, 1.75))
         sueno = float(np.clip(ref["eficiencia_sueno"] + rng.normal(0.0, 2.5), 80.2, 98.5))
+        horas_sueno = float(np.clip(ref["horas_sueno"] + rng.normal(0.0, 0.30), b["horas_sueno"]["normal"][0] + 0.05, b["horas_sueno"]["normal"][1] - 0.05))
         fc = float(np.clip(ref["frec_cardiaca"] + 6.0 * (act - 0.65) + rng.normal(0.0, 3.2), b["frec_cardiaca"]["normal"][0] + 0.5, b["frec_cardiaca"]["normal"][1] - 0.5))
         fr = float(np.clip(ref["frec_respiratoria"] + 1.2 * (act - 0.65) + rng.normal(0.0, 0.7), b["frec_respiratoria"]["normal"][0] + 0.1, b["frec_respiratoria"]["normal"][1] - 0.1))
         vr = float(np.clip(ref["vol_respiratorio"] + 1.0 * (act - 0.65) + rng.normal(0.0, 0.4), b["vol_respiratorio"]["normal"][0] + 0.1, b["vol_respiratorio"]["normal"][1] - 0.1))
@@ -127,6 +135,8 @@ def _generar_bloque_nominal(
         temp = float(np.clip(ref["temp_corporal"] + 0.08 * (act - 0.65) + rng.normal(0.0, 0.12), b["temp_corporal"]["normal"][0] + 0.05, b["temp_corporal"]["normal"][1] - 0.05))
         spo2 = float(np.clip(ref["spo2"] + rng.normal(0.0, 0.5), b["spo2"]["normal"][0] + 0.1, 100.0))
         ecg = float(np.clip(ref["anomalia_ecg"] + np.abs(rng.normal(0.0, 0.018)), 0.0, b["anomalia_ecg"]["normal"][1] - 0.005))
+        gluc = float(np.clip(ref["glucemia"] + rng.normal(0.0, 8.5), b["glucemia"]["normal"][0] + 2.0, b["glucemia"]["normal"][1] - 2.0))
+        animo = float(np.clip(ref["estado_animo"] + rng.normal(0.0, 0.45), b["estado_animo"]["normal"][0] + 0.1, 10.0))
 
         muestras.append({
             "presion_sistolica": ps,
@@ -138,26 +148,29 @@ def _generar_bloque_nominal(
             "frec_cardiaca": fc,
             "anomalia_ecg": ecg,
             "eficiencia_sueno": sueno,
+            "glucemia": gluc,
+            "horas_sueno": horas_sueno,
+            "estado_animo": animo,
         })
     return muestras
 
 
 def _generar_bloque_preventivo(n: int, rng: np.random.Generator) -> list[dict[str, float]]:
-    """Genera escenarios preventivos (banda amarilla NASA-STD-3001)."""
+    """Genera escenarios preventivos (banda Caution / amarilla)."""
     muestras: list[dict[str, float]] = []
     subtipos = [
         "hipoxia_leve",
         "sobrecarga_cv_moderada",
-        "fatiga_circadiana",
+        "sueno_glucemia_leve",
         "estres_termico_leve",
         "hipotension_bradicardia",
+        "animo_circadiano_preventivo",
         "hiperventilacion_esfuerzo",
     ]
     for i in range(n):
         tipo = subtipos[i % len(subtipos)]
-        # Partir de un estado basal saludable
         ps = float(rng.uniform(107.0, 123.0))
-        temp = float(rng.uniform(36.4, 37.2))
+        temp = float(rng.uniform(35.8, 36.7))
         act = float(rng.uniform(0.25, 1.5))
         spo2 = float(rng.uniform(96.3, 99.6))
         fr = float(rng.uniform(12.5, 17.5))
@@ -165,30 +178,40 @@ def _generar_bloque_preventivo(n: int, rng: np.random.Generator) -> list[dict[st
         fc = float(rng.uniform(58.0, 92.0))
         ecg = float(rng.uniform(0.01, 0.13))
         sueno = float(rng.uniform(81.0, 95.0))
+        gluc = float(rng.uniform(76.0, 128.0))
+        horas_sueno = float(rng.uniform(7.6, 9.1))
+        animo = float(rng.uniform(6.8, 9.4))
 
         if tipo == "hipoxia_leve":
             spo2 = float(rng.uniform(92.3, 95.7))
             fr = float(rng.uniform(18.2, 22.8))
-            fc = float(rng.uniform(95.5, 109.0))  # Debajo de 110 para no disparar regla sinérgica crítica
+            fc = float(rng.uniform(95.5, 109.0))
             vr = float(rng.uniform(10.6, 13.8))
         elif tipo == "sobrecarga_cv_moderada":
             fc = float(rng.uniform(96.0, 124.0))
             ps = float(rng.uniform(126.0, 143.0))
             ecg = float(rng.uniform(0.16, 0.31))
             act = float(rng.uniform(1.6, 2.5))
-        elif tipo == "fatiga_circadiana":
-            sueno = float(rng.uniform(66.0, 79.2))
-            ecg = float(rng.uniform(0.16, 0.28))
-            fc = float(rng.uniform(86.0, 99.5))  # Mantiene combinación por debajo de regla crítica
+        elif tipo == "sueno_glucemia_leve":
+            # Privación moderada de sueño + desregulación glucémica inicial (V2 8055)
+            horas_sueno = float(rng.uniform(6.1, 7.3))
+            sueno = float(rng.uniform(67.0, 78.5))
+            gluc = float(rng.uniform(57.0, 68.5)) if rng.random() < 0.5 else float(rng.uniform(143.0, 173.0))
+            animo = float(rng.uniform(4.7, 6.2))
+            fc = float(rng.uniform(82.0, 99.0))
         elif tipo == "estres_termico_leve":
-            temp = float(rng.uniform(37.5, 38.1))
+            temp = float(rng.uniform(36.95, 37.5))
             fc = float(rng.uniform(95.5, 114.0))
             ps = float(rng.uniform(94.0, 104.5)) if rng.random() < 0.5 else float(rng.uniform(125.5, 134.0))
             vr = float(rng.uniform(10.6, 12.8))
         elif tipo == "hipotension_bradicardia":
             ps = float(rng.uniform(91.0, 104.2))
             fc = float(rng.uniform(46.0, 54.4))
-            temp = float(rng.uniform(35.6, 36.2))
+            temp = float(rng.uniform(34.9, 35.5))
+        elif tipo == "animo_circadiano_preventivo":
+            animo = float(rng.uniform(4.6, 6.3))
+            horas_sueno = float(rng.uniform(6.2, 7.4))
+            sueno = float(rng.uniform(68.0, 79.0))
         else:  # hiperventilacion_esfuerzo
             act = float(rng.uniform(1.85, 2.85))
             fr = float(rng.uniform(18.5, 23.5))
@@ -205,20 +228,24 @@ def _generar_bloque_preventivo(n: int, rng: np.random.Generator) -> list[dict[st
             "frec_cardiaca": fc,
             "anomalia_ecg": ecg,
             "eficiencia_sueno": sueno,
+            "glucemia": gluc,
+            "horas_sueno": horas_sueno,
+            "estado_animo": animo,
         })
     return muestras
 
 
 def _generar_bloque_critico(n: int, rng: np.random.Generator) -> list[dict[str, float]]:
-    """
-    Genera escenarios críticos (banda roja NASA-STD-3001 y reglas sinérgicas).
-    """
+    """Genera escenarios críticos (Warning / Emergency) y reglas sinérgicas."""
     muestras: list[dict[str, float]] = []
     subtipos = [
         "hipoxia_aguda",
         "hipoxia_compensada_sinergica",
+        "evento_coronario_colapso",
         "sobrecarga_cv_aguda",
         "fatiga_circadiana_sinergica",
+        "sueno_hipoglucemia_sinergica",
+        "sueno_hiperglucemia_sinergica",
         "estres_termico_sinergico",
         "hipertermia_aislada_critica",
         "hipotermia_depresion_resp",
@@ -227,7 +254,7 @@ def _generar_bloque_critico(n: int, rng: np.random.Generator) -> list[dict[str, 
     for i in range(n):
         tipo = subtipos[i % len(subtipos)]
         ps = float(rng.uniform(108.0, 124.0))
-        temp = float(rng.uniform(36.5, 37.3))
+        temp = float(rng.uniform(35.8, 36.7))
         act = float(rng.uniform(0.3, 1.6))
         spo2 = float(rng.uniform(96.0, 99.2))
         fr = float(rng.uniform(13.0, 17.5))
@@ -235,47 +262,71 @@ def _generar_bloque_critico(n: int, rng: np.random.Generator) -> list[dict[str, 
         fc = float(rng.uniform(65.0, 90.0))
         ecg = float(rng.uniform(0.02, 0.14))
         sueno = float(rng.uniform(80.5, 93.0))
+        gluc = float(rng.uniform(80.0, 122.0))
+        horas_sueno = float(rng.uniform(7.6, 8.9))
+        animo = float(rng.uniform(6.8, 9.0))
 
         if tipo == "hipoxia_aguda":
-            spo2 = float(rng.uniform(83.0, 91.8))
+            spo2 = float(rng.uniform(82.0, 91.8))
             fr = float(rng.uniform(24.2, 31.0)) if rng.random() < 0.7 else float(rng.uniform(6.5, 8.8))
             vr = float(rng.uniform(3.2, 4.4)) if fr < 9.0 else float(rng.uniform(14.5, 18.5))
             fc = float(rng.uniform(118.0, 146.0))
         elif tipo == "hipoxia_compensada_sinergica":
-            # Regla sinérgica: spo2 < 95.0 AND frec_respiratoria > 20.0 AND frec_cardiaca > 110.0
             spo2 = float(rng.uniform(92.2, 94.8))
             fr = float(rng.uniform(20.4, 23.8))
             fc = float(rng.uniform(111.0, 128.5))
             vr = float(rng.uniform(11.5, 15.5))
+        elif tipo == "evento_coronario_colapso":
+            # Escenario oficial de la Consigna: dolor torácico agudo y colapso en tránsito
+            fc = float(rng.uniform(134.0, 165.0))
+            ps = float(rng.uniform(78.0, 89.0)) if rng.random() < 0.45 else float(rng.uniform(148.0, 178.0))
+            ecg = float(rng.uniform(0.42, 0.85))
+            spo2 = float(rng.uniform(88.5, 93.8))
+            fr = float(rng.uniform(22.0, 29.0))
+            act = float(rng.uniform(0.05, 0.35))
+            animo = float(rng.uniform(2.0, 4.2))
         elif tipo == "sobrecarga_cv_aguda":
             fc = float(rng.uniform(131.5, 162.0))
-            ps = float(rng.uniform(146.0, 172.0))
+            ps = float(rng.uniform(146.0, 174.0))
             ecg = float(rng.uniform(0.36, 0.78))
             act = float(rng.uniform(1.8, 3.3))
         elif tipo == "fatiga_circadiana_sinergica":
-            # Regla sinérgica: eficiencia_sueno < 72.0 AND anomalia_ecg > 0.20 AND frec_cardiaca > 100.0
-            sueno = float(rng.uniform(50.0, 71.5))
+            sueno = float(rng.uniform(48.0, 71.0))
+            horas_sueno = float(rng.uniform(3.8, 5.8))
             ecg = float(rng.uniform(0.21, 0.45))
             fc = float(rng.uniform(101.0, 126.0))
             ps = float(rng.uniform(92.0, 106.0))
+            animo = float(rng.uniform(2.5, 4.4))
+        elif tipo == "sueno_hipoglucemia_sinergica":
+            horas_sueno = float(rng.uniform(3.8, 5.9))
+            sueno = float(rng.uniform(50.0, 72.0))
+            gluc = float(rng.uniform(42.0, 65.0))
+            animo = float(rng.uniform(2.5, 4.4))
+            fc = float(rng.uniform(102.0, 124.0))
+        elif tipo == "sueno_hiperglucemia_sinergica":
+            horas_sueno = float(rng.uniform(4.0, 6.2))
+            sueno = float(rng.uniform(52.0, 74.0))
+            gluc = float(rng.uniform(180.0, 280.0))
+            animo = float(rng.uniform(3.0, 4.8))
+            fc = float(rng.uniform(96.0, 118.0))
         elif tipo == "estres_termico_sinergico":
-            # Regla sinérgica: temp_corporal > 37.8 AND presion_sistolica > 135.0 AND frec_cardiaca > 115.0
-            temp = float(rng.uniform(37.85, 39.2))
+            temp = float(rng.uniform(37.35, 38.4))
             ps = float(rng.uniform(136.0, 156.0))
             fc = float(rng.uniform(116.0, 142.0))
             vr = float(rng.uniform(12.0, 16.8))
         elif tipo == "hipertermia_aislada_critica":
-            # Umbral individual crítico: temp_corporal > 38.2 con taquicardia moderada
-            temp = float(rng.uniform(38.23, 39.4))
+            temp = float(rng.uniform(37.65, 38.8))
             fc = float(rng.uniform(98.0, 134.0))
             ps = float(rng.uniform(98.0, 144.0))
             vr = float(rng.uniform(10.5, 15.2))
         elif tipo == "hipotermia_depresion_resp":
-            temp = float(rng.uniform(34.5, 35.4))
-            fc = float(rng.uniform(38.0, 44.5))
-            ps = float(rng.uniform(78.0, 89.2))
+            # Piel < 34.3 °C -> Temp central estimada < 35.0 °C (Vol. 1 Apéndice C)
+            temp = float(rng.uniform(33.2, 34.3))
+            fc = float(rng.uniform(36.0, 44.5))
+            ps = float(rng.uniform(76.0, 89.2))
             fr = float(rng.uniform(6.5, 8.8))
             vr = float(rng.uniform(3.2, 4.4))
+            act = float(rng.uniform(0.05, 0.35))
         else:  # arritmia_convulsion
             ecg = float(rng.uniform(0.37, 0.82))
             act = float(rng.uniform(3.05, 4.1))
@@ -292,6 +343,9 @@ def _generar_bloque_critico(n: int, rng: np.random.Generator) -> list[dict[str, 
             "frec_cardiaca": fc,
             "anomalia_ecg": ecg,
             "eficiencia_sueno": sueno,
+            "glucemia": gluc,
+            "horas_sueno": horas_sueno,
+            "estado_animo": animo,
         })
     return muestras
 
@@ -310,8 +364,8 @@ def generar_dataset(
     obtener_referencias_osdr(forzar_red=False)
     base_df = asegurar_telemetry_base()
 
-    n_nominal = int(n_total * 0.48)
-    n_preventivo = int(n_total * 0.28)
+    n_nominal = int(n_total * 0.45)
+    n_preventivo = int(n_total * 0.27)
     n_critico = n_total - n_nominal - n_preventivo
 
     registros = (
@@ -320,7 +374,6 @@ def generar_dataset(
         + _generar_bloque_critico(n_critico, rng)
     )
 
-    # Redondeo realista de sensores y etiquetado estricto desde nasa_thresholds.json
     filas_procesadas: list[dict[str, float | int]] = []
     for reg in registros:
         limpia = {
@@ -333,6 +386,9 @@ def generar_dataset(
             "frec_cardiaca": round(float(reg["frec_cardiaca"]), 1),
             "anomalia_ecg": round(float(reg["anomalia_ecg"]), 3),
             "eficiencia_sueno": round(float(reg["eficiencia_sueno"]), 1),
+            "glucemia": round(float(reg["glucemia"]), 1),
+            "horas_sueno": round(float(reg["horas_sueno"]), 2),
+            "estado_animo": round(float(reg["estado_animo"]), 1),
         }
         etiqueta = etiquetar_registro_desde_json(limpia, thresholds_json)
         limpia["estado_riesgo"] = etiqueta

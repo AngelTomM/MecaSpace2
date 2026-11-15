@@ -2,8 +2,9 @@
 Entrenamiento y validación de XGBClassifier para clasificación de riesgo biomédico.
 
 Prioriza la sensibilidad (recall) y tasa de falsos negativos sobre la clase
-`2: Crítico` para garantizar detección temprana en misiones con latencia de
-30 minutos. Exporta el modelo entrenado en `modelo_xgb.json`.
+`2: Crítico` para garantizar detección temprana en tránsito a Marte con
+latencia de comunicación de hasta 20 minutos por sentido. Exporta el modelo
+entrenado en `modelo_xgb.json`.
 """
 
 from __future__ import annotations
