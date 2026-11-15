@@ -27,40 +27,40 @@ export const CONSIGNA_SIX_INDICATORS = [
 
 export const RISK_LABELS = {
   0: "Normal",
-  1: "Preventivo",
-  2: "Crítico",
+  1: "Caution",
+  2: "Critical",
 };
 
 export const NASA_ALERT_LEVELS = {
   Emergency: {
     color_hex: "#DC2626",
-    label_es: "EMERGENCY (ROJO PARPADEANTE)",
-    criterio: "Amenaza vital; requiere acción y procedimientos inmediatos (Tabla 10.3-1).",
+    label_es: "EMERGENCY (BLINKING RED)",
+    criterio: "Life-threatening; requires immediate action and procedures.",
   },
   Warning: {
     color_hex: "#EF4444",
-    label_es: "WARNING (ROJO SÓLIDO)",
-    criterio: "Fallo o deterioro con potencial de escalar a amenaza vital; acción inmediata.",
+    label_es: "WARNING (SOLID RED)",
+    criterio: "Failure or deterioration with potential to escalate to life threat; immediate action.",
   },
   Caution: {
     color_hex: "#F59E0B",
-    label_es: "CAUTION (AMARILLO)",
-    criterio: "Evento fuera de rango nominal que requiere atención, pero no acción inmediata.",
+    label_es: "CAUTION (YELLOW)",
+    criterio: "Out-of-nominal event requiring attention, but not immediate action.",
   },
   Advisory: {
     color_hex: "#3B82F6",
-    label_es: "ADVISORY (AZUL)",
-    criterio: "Aviso rutinario o recordatorio de medición multimodal (no alcanza Caution).",
+    label_es: "ADVISORY (BLUE)",
+    criterio: "Routine notice or multimodal measurement reminder (below Caution).",
   },
   Nominal: {
     color_hex: "#10B981",
-    label_es: "NOMINAL (VERDE)",
-    criterio: "Parámetros fisiológicos y ambientales dentro de banda nominal operativa.",
+    label_es: "NOMINAL (GREEN)",
+    criterio: "Physiological and environmental parameters within nominal operational band.",
   },
   Stale: {
     color_hex: "#06B6D4",
-    label_es: "DATO OBSOLETO / FALTANTE (CIAN)",
-    criterio: "Telemetría o entrada manual desactualizada (Tabla F.5-1, V2 10020).",
+    label_es: "STALE / MISSING DATA (CYAN)",
+    criterio: "Outdated telemetry or manual entry.",
   },
 };
 
@@ -76,7 +76,7 @@ export function cargarUmbralesNasa() {
 }
 
 export function obtenerReferenciasOsdr() {
-  return { ...osdrReferencia, source_mode: "local_cache" };
+  return {...osdrReferencia, source_mode: "local_cache" };
 }
 
 export function estimarTempCentral(tempPiel, nivelActividad = 0.65) {
@@ -107,7 +107,7 @@ export function evaluarReglasDeterministasCriticas(
     esEmergency = true;
     excedeAlcance = true;
     razones.push(
-      "Activación manual directa de emergencia (V2 10178): posible dolor torácico o colapso."
+      "Direct manual emergency activation: possible chest pain or collapse."
     );
   }
 
@@ -115,56 +115,56 @@ export function evaluarReglasDeterministasCriticas(
     esEmergency = true;
     excedeAlcance = true;
     razones.push(
-      `Hipotermia central estimada crítica (${tempCentral.toFixed(2)} °C < 35,0 °C, Vol. 1 Apéndice C; piel=${tempPiel.toFixed(2)} °C).`
+      `Critical estimated core hypothermia (${tempCentral.toFixed(2)} °C < 35.0 °C, Vol. 1 Appendix C; skin=${tempPiel.toFixed(2)} °C).`
     );
   } else if (tempCentral > 38.6) {
     esEmergency = true;
     excedeAlcance = true;
     razones.push(
-      `Hipertermia central estimada crítica (${tempCentral.toFixed(2)} °C > 38,6 °C; piel=${tempPiel.toFixed(2)} °C, V2 11011).`
+      `Critical estimated core hyperthermia (${tempCentral.toFixed(2)} °C > 38.6 °C; skin=${tempPiel.toFixed(2)} °C).`
     );
   }
 
   if (spo2 < 90.0) {
     esEmergency = true;
     excedeAlcance = true;
-    razones.push(`Hipoxemia severa determinista (SpO₂=${spo2.toFixed(1)} % < 90,0 %).`);
+    razones.push(`Deterministic severe hypoxemia (SpO₂=${spo2.toFixed(1)}% < 90.0%).`);
   }
 
   if (fc < 40.0 || fc > 150.0) {
     esEmergency = true;
     excedeAlcance = true;
-    razones.push(`Bradicardia o taquicardia extrema determinista (FC=${fc.toFixed(0)} lpm).`);
+    razones.push(`Deterministic extreme bradycardia or tachycardia (HR=${fc.toFixed(0)} bpm).`);
   } else if (fc > 140.0 && ecg > 0.25) {
     esEmergency = true;
     excedeAlcance = true;
     razones.push(
-      `Taquiarritmia de alto riesgo (FC=${fc.toFixed(0)} lpm > 140 lpm [ref. V2 11011] + ECG=${ecg.toFixed(2)}).`
+      `High-risk tachyarrhythmia (HR=${fc.toFixed(0)} bpm > 140 bpm [ref. V2 11011] + ECG=${ecg.toFixed(2)}).`
     );
   }
 
   if (ps < 80.0 || ps >= 180.0) {
     esEmergency = true;
     excedeAlcance = true;
-    razones.push(`Crisis hemodinámica determinista (PAS=${ps.toFixed(1)} mmHg).`);
+    razones.push(`Deterministic hemodynamic crisis (SBP=${ps.toFixed(1)} mmHg).`);
   }
 
   if (ecg > 0.55) {
     esEmergency = true;
     excedeAlcance = true;
     razones.push(
-      `Anomalía ECG severa determinista (índice=${ecg.toFixed(3)} > 0,55; escalar a V1 3004.i).`
+      `Deterministic severe ECG anomaly (index=${ecg.toFixed(3)} > 0.55; escalate to V1 3004.i).`
     );
   }
 
   if (gluc < 54.0) {
     esEmergency = true;
     excedeAlcance = true;
-    razones.push(`Hipoglucemia severa neuroglucopénica (${gluc.toFixed(0)} mg/dL < 54 mg/dL).`);
+    razones.push(`Severe neuroglycopenic hypoglycemia (${gluc.toFixed(0)} mg/dL < 54 mg/dL).`);
   } else if (gluc > 300.0) {
     esEmergency = true;
     excedeAlcance = true;
-    razones.push(`Hiperglucemia severa determinista (${gluc.toFixed(0)} mg/dL > 300 mg/dL).`);
+    razones.push(`Deterministic severe hyperglycemia (${gluc.toFixed(0)} mg/dL > 300 mg/dL).`);
   }
 
   if (cabinEnv) {
@@ -174,21 +174,21 @@ export function evaluarReglasDeterministasCriticas(
       esEmergency = true;
       excedeAlcance = true;
       razones.push(
-        `P_I O₂ de cabina debajo del mínimo absoluto 1 h (${piO2.toFixed(1)} < 122 mmHg, Tabla 6.2-1).`
+        `Cabin P_I O₂ below 1 h absolute minimum (${piO2.toFixed(1)} < 122 mmHg, Table 6.2-1).`
       );
     }
     if (ppco2 > 5.3) {
       esEmergency = true;
       excedeAlcance = true;
       razones.push(
-        `Hipercapnia crítica de cabina (ppCO₂=${ppco2.toFixed(2)} > 5,3 mmHg, ref. V2 6004).`
+        `Critical cabin hypercapnia (ppCO₂=${ppco2.toFixed(2)} > 5.3 mmHg, ref. V2 6004).`
       );
     }
   }
 
   return {
     disparada: razones.length > 0,
-    nivel_nasa: esEmergency ? "Emergency" : "Nominal",
+    nivel_nasa: esEmergency ? "Emergency": "Nominal",
     razones,
     excede_alcance: excedeAlcance,
     temp_central_est: tempCentral,

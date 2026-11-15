@@ -1,9 +1,12 @@
 import React, { useState } from "react";
 import {
   METRIC_META,
+  PARAM_ORDER,
   PRIMARY_METRICS,
+  SUMMARY_THREE_METRICS,
   extractUiMetrics,
   getQuickMetricPlan,
+  getSpecificFirstAidRecommendation,
   getTrendArrow,
   pickHighestSeverity,
 } from "../data/nasaProtocols";
@@ -21,8 +24,10 @@ export default function SummaryTab({
   onClearStale,
   onFocusMetric,
   onGoToParameters,
+  onOpenAssistant,
 }) {
   const [selectedZone, setSelectedZone] = useState(null);
+  const [showAllThree, setShowAllThree] = useState(false);
   const [imgFailed, setImgFailed] = useState(false);
 
   const m = extractUiMetrics(data);
@@ -32,30 +37,30 @@ export default function SummaryTab({
   const roster = data.crew_roster || [];
   const activeCrew = roster.find((c) => c.id === data.active_crew_id) || {
     id: "koch",
-    name: "Esp. Christina Koch",
+    name: "Spec. Christina Koch",
     blood: "O+",
   };
 
   const { states, primaryBanner, overallState, activeCount } = alertSystem;
   const plan = getQuickMetricPlan(m, states);
 
-  // Estado por zona anatómica
+  // Status by anatomical zone
   const stHead = pickHighestSeverity([states.sleep, states.mood, states.pvt]);
-  const stThorax = pickHighestSeverity([states.bp, states.hr]);
+  const stThorax = pickHighestSeverity([states.bp, states.hr, states.spo2]);
   const stAbdomen = pickHighestSeverity([states.glucose, states.temp, states.radiation]);
 
   const zoneMap = {
     head: {
-      title: "Cabeza · Sueño, Ánimo y Reflejos",
-      text: `Sueño ${m.sleep.toFixed(1)} h · Ánimo ${m.moodPct}% (${m.moodScore.toFixed(1)}/10) · PVT ${Math.round(m.pvt)} ms`,
+      title: "Head · Sleep, Mood & Reflexes",
+      text: `Sleep ${m.sleep.toFixed(1)} h · Mood ${m.moodPct}% (${m.moodScore.toFixed(1)}/10) · PVT ${Math.round(m.pvt)} ms`,
     },
     thorax: {
-      title: "Tórax · Presión, Pulso y Oxigenación",
-      text: `PA ${Math.round(m.bpSys)}/${Math.round(m.bpDia)} mmHg · FC ${Math.round(m.hr)} bpm · SpO₂ ${m.spo2.toFixed(1)}% · ECG ${m.ecg.toFixed(2)}`,
+      title: "Thorax · BP, Heart Rate & SpO₂",
+      text: `BP ${Math.round(m.bpSys)}/${Math.round(m.bpDia)} mmHg · HR ${Math.round(m.hr)} bpm · SpO₂ ${m.spo2.toFixed(1)}% · ECG ${m.ecg.toFixed(2)}`,
     },
     abdomen: {
-      title: "Abdomen · Metabolismo, Temp y Radiación",
-      text: `Glucemia ${Math.round(m.glucose)} mg/dL · Piel ${m.temp.toFixed(1)} °C / Central est. ${m.tempCentral.toFixed(2)} °C · Rad ${m.radiationTotal.toFixed(1)} mSv (${m.radiation.toFixed(2)}/d)`,
+      title: "Abdomen · Metabolism, Temp & Radiation",
+      text: `Glucose ${Math.round(m.glucose)} mg/dL · Skin ${m.temp.toFixed(1)} °C / Est. Core ${m.tempCentral.toFixed(2)} °C · Rad ${m.radiationTotal.toFixed(1)} mSv (${m.radiation.toFixed(2)}/d)`,
     },
   };
 
@@ -72,18 +77,18 @@ export default function SummaryTab({
       {/* Cabecera limpia AHBM + Controles NASA */}
       <header className="screen-header">
         <div>
-          <h1 className="screen-title">Resumen de Salud</h1>
+          <h1 className="screen-title">Health Summary</h1>
           <p className="screen-subtitle">
-            Tránsito a Marte · Día {data.mission_day}
+            Mars Transit · Day {data.mission_day}
           </p>
         </div>
 
         <div className="header-controls">
-          {/* Selector de Astronauta */}
+          {/* Crew Selector */}
           <div className="astro-select-wrap">
             <span className="astro-dot" style={{ backgroundColor: overallState.hex }} />
             <select
-              aria-label="Seleccionar astronauta"
+              aria-label="Select crew member"
               className="astro-select"
               value={data.active_crew_id}
               onChange={(e) => {
@@ -114,39 +119,45 @@ export default function SummaryTab({
             {overallState.label}
           </span>
 
-          {/* Audio dual-codificado (Tabla 10.3-1 / V2 10176) */}
+          <button
+            type="button"
+            className="pill-btn dark"
+            onClick={onOpenAssistant}
+            title="Open Autonomous Clinical Assistant"
+          >
+            💬 AI Assistant
+          </button>
+
           <button
             type="button"
             className={`pill-btn ${audioEnabled ? "blue" : ""}`}
             onClick={onToggleAudio}
-            title="Audio dual-codificado con pre-alerta -10 dB (V2 10176)"
+            title="Dual-coded audio with -10 dB pre-alert"
           >
             {audioEnabled ? "🔊 Audio ON" : "🔇 Audio OFF"}
           </button>
 
-          {/* Silenciamiento global en 1 acción (V2 10116, F.6.4.k) */}
           {overallState.severity > 0 && (
             <button
               type="button"
               className="pill-btn"
               onClick={() => onAlarmAction("silence")}
-              title="Silenciamiento audible global en una acción (V2 10116)"
+              title="Single-action global audible silence"
             >
-              {ui.alarma_silenciada ? "🔔 Reactivar" : "🔕 Silenciar"}
+              {ui.alarma_silenciada ? "🔔 Unmute" : "🔕 Silence"}
             </button>
           )}
 
-          {/* Botón independiente SOS Torácico (V2 10178 + borde hazard V2 10080) */}
           <button
             type="button"
             onClick={() => onToggleEmergency(!ui.emergencia_manual)}
-            title="Disparador de emergencia independiente V2 10178"
+            title="Independent emergency trigger V2 10178"
             className={`sos-btn ${ui.emergencia_manual ? "active-clear" : ""} ${
               ui.emergencia_manual && !ui.parpadeo_detenido ? "nasa-emergency-blink" : ""
             }`}
           >
             <span>{ui.emergencia_manual ? "✓" : "⚡"}</span>
-            <span>{ui.emergencia_manual ? "Cerrar SOS" : "SOS Torácico"}</span>
+            <span>{ui.emergencia_manual ? "Clear SOS" : "Thoracic SOS"}</span>
           </button>
         </div>
       </header>
@@ -202,11 +213,11 @@ export default function SummaryTab({
               </svg>
             )}
 
-            {/* 3 Puntos Interactivos: Cabeza, Tórax, Abdomen */}
+            {/* 3 Interactive Points: Head, Thorax, Abdomen */}
             {[
-              { id: "head", top: "10%", st: stHead, label: "Zona Cabeza" },
-              { id: "thorax", top: "24%", st: stThorax, label: "Zona Tórax" },
-              { id: "abdomen", top: "36%", st: stAbdomen, label: "Zona Abdomen" },
+              { id: "head", top: "10%", st: stHead, label: "Head Zone" },
+              { id: "thorax", top: "24%", st: stThorax, label: "Thorax Zone" },
+              { id: "abdomen", top: "36%", st: stAbdomen, label: "Abdomen Zone" },
             ].map((hs) => (
               <button
                 key={hs.id}
@@ -254,8 +265,8 @@ export default function SummaryTab({
 
           <div className="zone-pills-grid">
             {[
-              { id: "head", name: "Cabeza", st: stHead },
-              { id: "thorax", name: "Tórax", st: stThorax },
+              { id: "head", name: "Head", st: stHead },
+              { id: "thorax", name: "Thorax", st: stThorax },
               { id: "abdomen", name: "Abdomen", st: stAbdomen },
             ].map((z) => (
               <button
@@ -313,40 +324,12 @@ export default function SummaryTab({
                 <span
                   className="mono"
                   style={{
-                    padding: "3px 9px",
-                    borderRadius: "8px",
-                    fontSize: "10.5px",
-                    fontWeight: 800,
-                    backgroundColor: "#0F172A",
-                    color: "#FFFFFF",
-                  }}
-                >
-                  {primaryBanner.protoCode}
-                </span>
-                {primaryBanner.exceedsScope && (
-                  <span
-                    className="mono"
-                    style={{
-                      padding: "3px 9px",
-                      borderRadius: "8px",
-                      fontSize: "10.5px",
-                      fontWeight: 800,
-                      backgroundColor: "#A21CAF",
-                      color: "#FFFFFF",
-                    }}
-                  >
-                    EXCEDE ALCANCE · V2 10171
-                  </span>
-                )}
-                <span
-                  className="mono"
-                  style={{
                     fontSize: "10.5px",
                     fontWeight: 700,
                     opacity: 0.85,
                   }}
                 >
-                  {activeCount > 0 ? `${activeCount} aviso${activeCount > 1 ? "s" : ""} activo${activeCount > 1 ? "s" : ""}` : "Sin alertas activas"}
+                  {activeCount > 0 ? `${activeCount} active alert${activeCount > 1 ? "s" : ""}` : "No active alerts"}
                 </span>
               </div>
 
@@ -357,7 +340,7 @@ export default function SummaryTab({
                     className="pill-btn sm"
                     onClick={() => onAlarmAction("ack")}
                   >
-                    ✓ Reconocer
+                    ✓ Acknowledge
                   </button>
                 )}
                 {ui.datos_manuales_obsoletos && (
@@ -367,7 +350,7 @@ export default function SummaryTab({
                     style={{ background: "#0891B2", borderColor: "#0891B2", color: "#FFFFFF" }}
                     onClick={onClearStale}
                   >
-                    ⏱ Confirmar Dato Cian
+                    ⏱ Confirm Stale Data
                   </button>
                 )}
                 {primaryBanner.actionType && primaryBanner.overallState.severity > 0 && (
@@ -383,22 +366,21 @@ export default function SummaryTab({
                   type="button"
                   className="pill-btn sm"
                   onClick={onGoToParameters}
-                  title="Ver detalles y protocolos"
+                  title="View details and protocols"
                 >
-                  📋 Protocolos
+                  📋 Protocols
                 </button>
               </div>
             </div>
 
-            {/* Líneas concisas de estado y acción */}
             <div className="message-lines">
-              <div>{primaryBanner.line1.replace(/^\[ALERTA:[^\]]+\]\s*/i, "")}</div>
+              <div>{primaryBanner.line1.replace(/^\[(ALERTA|ALERT):[^\]]+\]\s*/i, "")}</div>
               <div>
-                <strong>Acción:</strong> {primaryBanner.line2}
+                <strong>Action:</strong> {primaryBanner.line2}
               </div>
               {(primaryBanner.overallState.severity >= 2 || primaryBanner.exceedsScope) && (
                 <div>
-                  <strong>Escalado:</strong> {primaryBanner.line3}
+                  <strong>Escalation:</strong> {primaryBanner.line3}
                 </div>
               )}
             </div>
@@ -430,155 +412,234 @@ export default function SummaryTab({
             )}
           </div>
 
-          {/* 4 RECUADROS DINÁMICOS DE VALORES PRINCIPALES */}
-          <div className="quick-metrics-grid">
-            {plan.slots.map((key, index) => {
-              const meta = METRIC_META[key];
-              const state = states[key];
-              const value = meta.quickFormat ? meta.quickFormat(m) : meta.format(m);
-              const unit = meta.quickUnit || meta.unit;
-              const replacement = plan.replacements.find((r) => r.index === index);
-              const dir = getTrendArrow(key, m);
+          {/* 3 STACKED HORIZONTAL INDICATOR CARDS (EXPANDS ON CAUTION/WARNING/EMERGENCY FOR ANY PARAMETER) */}
+          {(() => {
+            const allKeys = [...PARAM_ORDER, "pvt"];
+            const alteredList = allKeys
+              .filter((k) => (states[k]?.severity ?? 0) >= 2)
+              .sort((a, b) => states[b].severity - states[a].severity);
+            const expandedKey = !showAllThree && alteredList.length > 0 ? alteredList[0] : null;
 
-              const subParts = [];
-              if (key === "radiation") {
-                subParts.push(`${m.radiation.toFixed(2)} mSv/d · Día ${data.mission_day}`);
-              } else if (key === "temp") {
-                subParts.push(`Central est. ${m.tempCentral.toFixed(1)} °C`);
-              } else if (replacement) {
-                subParts.push(`Sustituye a ${METRIC_META[replacement.from].label}`);
-              }
+            if (expandedKey) {
+              const meta = METRIC_META[expandedKey];
+              const state = states[expandedKey];
+              const value = meta.format(m);
+              const dir = getTrendArrow(expandedKey, m);
+              const rec = getSpecificFirstAidRecommendation(expandedKey, m);
 
               return (
-                <button
-                  key={key}
-                  type="button"
-                  onClick={() => onFocusMetric(key)}
+                <div
                   className="big-metric-box"
                   style={{
+                    flex: 1,
                     backgroundColor: state.cardBg,
                     borderColor: state.cardBorder,
+                    padding: "20px 22px",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    gap: "14px",
+                    cursor: "default",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px", minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                       <span className="metric-icon-box">
-                        <MetricIcon metricKey={key} />
+                        <MetricIcon metricKey={expandedKey} />
                       </span>
-                      <h3
-                        style={{
-                          margin: 0,
-                          fontSize: "15px",
-                          fontWeight: 800,
-                          color: "#0F172A",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {meta.label}
-                      </h3>
+                      <div>
+                        <h3 style={{ margin: 0, fontSize: "17px", fontWeight: 800, color: "#0F172A" }}>
+                          {meta.fullLabel}
+                        </h3>
+                        <span style={{ fontSize: "11px", color: "#475569" }}>{meta.source}</span>
+                      </div>
                     </div>
 
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        className={state.blink ? "nasa-emergency-blink" : ""}
+                        style={{
+                          padding: "5px 11px",
+                          borderRadius: "10px",
+                          fontSize: "11px",
+                          fontWeight: 800,
+                          backgroundColor: state.badgeBg,
+                          color: state.badgeText,
+                        }}
+                      >
+                        {state.label}
+                      </span>
+                      <button
+                        type="button"
+                        className="pill-btn sm"
+                        onClick={() => setShowAllThree(true)}
+                      >
+                        Show all 3
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "baseline", gap: "8px" }}>
                     <span
-                      className={state.blink ? "nasa-emergency-blink" : ""}
+                      className="mono"
                       style={{
-                        padding: "4px 9px",
-                        borderRadius: "10px",
-                        fontSize: "10px",
+                        fontSize: "clamp(44px, 4.5vw, 58px)",
                         fontWeight: 800,
-                        backgroundColor: state.badgeBg,
-                        color: state.badgeText,
-                        flexShrink: 0,
+                        color: "#0F172A",
+                        lineHeight: 1,
+                        letterSpacing: "-0.03em",
                       }}
                     >
-                      {state.label}
+                      {value}
                     </span>
+                    {dir && (
+                      <span style={{ fontSize: "22px", fontWeight: 800, color: arrowColor(state) }}>
+                        {dir === "up" ? "↑" : "↓"}
+                      </span>
+                    )}
+                    <span style={{ fontSize: "16px", fontWeight: 700, color: "#475569" }}>{meta.unit}</span>
                   </div>
 
                   <div
                     style={{
-                      flex: 1,
+                      background: "rgba(255, 255, 255, 0.85)",
+                      borderRadius: "14px",
+                      padding: "14px 16px",
+                      border: "1px solid rgba(15, 23, 42, 0.1)",
                       display: "flex",
                       flexDirection: "column",
-                      justifyContent: "center",
-                      marginTop: "6px",
+                      gap: "8px",
+                      fontSize: "13.5px",
+                      lineHeight: 1.45,
+                      color: "#0F172A",
                     }}
                   >
-                    <div style={{ display: "flex", alignItems: "baseline", gap: "7px" }}>
-                      <span
-                        className="mono"
-                        style={{
-                          fontSize: key === "bp" ? "clamp(32px, 3.3vw, 44px)" : "clamp(42px, 4.2vw, 54px)",
-                          fontWeight: 800,
-                          color: "#0F172A",
-                          lineHeight: 1,
-                          letterSpacing: "-0.03em",
-                        }}
-                      >
-                        {value}
-                      </span>
-                      {dir && state.severity > 0 && (
-                        <span style={{ fontSize: "19px", fontWeight: 800, color: arrowColor(state) }}>
-                          {dir === "up" ? "↑" : "↓"}
-                        </span>
-                      )}
-                      <span style={{ fontSize: "15px", fontWeight: 700, color: "#475569" }}>{unit}</span>
+                    <div>
+                      <strong>Possible Symptom:</strong> {rec.symptom}
                     </div>
-                    {subParts.length > 0 && (
-                      <p
-                        className="mono"
-                        style={{
-                          margin: "6px 0 0",
-                          fontSize: "10.5px",
-                          color: "#475569",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {subParts.join(" · ")}
-                      </p>
-                    )}
+                    <div>
+                      <strong>Microgravity Cause:</strong> {rec.cause}
+                    </div>
+                    <div>
+                      <strong>First-Aid Recommendation:</strong> {rec.recommendation}
+                    </div>
                   </div>
-                </button>
-              );
-            })}
-          </div>
 
-          {/* Tira compacta de cabina en una sola línea */}
-          <div
-            className="mono"
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "12px",
-              padding: "9px 14px",
-              borderRadius: "12px",
-              background: "#FFFFFF",
-              border: "1px solid #E2DDD2",
-              fontSize: "11.5px",
-              color: "#475569",
-            }}
-          >
-            <span>
-              SpO₂ <strong style={{ color: m.spo2 < 92 ? "#DC2626" : "#0F172A" }}>{m.spo2.toFixed(1)}%</strong>
-            </span>
-            <span>
-              O₂ Cabina <strong style={{ color: (cabin.pi_o2_mmhg ?? 150) < 127 ? "#DC2626" : "#0F172A" }}>{Number(cabin.pi_o2_mmhg ?? 150).toFixed(0)} mmHg</strong>
-            </span>
-            <span>
-              CO₂ <strong style={{ color: (cabin.ppco2_mmhg ?? 1.8) > 3.0 ? "#B45309" : "#0F172A" }}>{Number(cabin.ppco2_mmhg ?? 1.8).toFixed(2)} mmHg</strong>
-            </span>
-            <span>
-              Temp. Central <strong style={{ color: m.tempCentral < 35.0 ? "#DC2626" : "#0F172A" }}>{m.tempCentral.toFixed(1)} °C</strong>
-            </span>
-            <span>
-              ECG <strong style={{ color: m.ecg > 0.35 ? "#DC2626" : "#0F172A" }}>{m.ecg.toFixed(2)}</strong>
-            </span>
-          </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                    <button
+                      type="button"
+                      className="pill-btn sm dark"
+                      onClick={() => onFocusMetric(expandedKey)}
+                    >
+                      Inspect in Parameters →
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
+                {SUMMARY_THREE_METRICS.map((key) => {
+                  const meta = METRIC_META[key];
+                  const state = states[key];
+                  const value = meta.format(m);
+                  const dir = getTrendArrow(key, m);
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        if (state.severity > 0) {
+                          setShowAllThree(false);
+                        } else {
+                          onFocusMetric(key);
+                        }
+                      }}
+                      className="big-metric-box"
+                      style={{
+                        flex: 1,
+                        minHeight: "76px",
+                        padding: "14px 20px",
+                        backgroundColor: state.cardBg,
+                        borderColor: state.cardBorder,
+                        display: "flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "14px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
+                        <span
+                          className="metric-icon-box"
+                          style={{ width: "54px", height: "54px", borderRadius: "15px", flexShrink: 0 }}
+                        >
+                          <span style={{ display: "inline-flex", transform: "scale(1.55)" }}>
+                            <MetricIcon metricKey={key} />
+                          </span>
+                        </span>
+                        <div style={{ textAlign: "left", minWidth: 0 }}>
+                          <h3
+                            style={{
+                              margin: 0,
+                              fontSize: "21px",
+                              fontWeight: 800,
+                              color: "#0F172A",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {meta.label}
+                          </h3>
+                          <div style={{ fontSize: "13px", color: "#475569", marginTop: "2px" }}>{meta.source}</div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "18px", flexShrink: 0 }}>
+                        <div style={{ display: "flex", alignItems: "baseline", gap: "7px" }}>
+                          <span
+                            className="mono"
+                            style={{
+                              fontSize: key === "bp" ? "clamp(38px, 3.8vw, 50px)" : "clamp(46px, 4.5vw, 60px)",
+                              fontWeight: 800,
+                              color: "#0F172A",
+                              lineHeight: 1,
+                              letterSpacing: "-0.02em",
+                            }}
+                          >
+                            {value}
+                          </span>
+                          {dir && state.severity > 0 && (
+                            <span style={{ fontSize: "22px", fontWeight: 800, color: arrowColor(state) }}>
+                              {dir === "up" ? "↑" : "↓"}
+                            </span>
+                          )}
+                          <span style={{ fontSize: "17px", fontWeight: 700, color: "#475569" }}>{meta.unit}</span>
+                        </div>
+
+                        <span
+                          className={state.blink ? "nasa-emergency-blink" : ""}
+                          style={{
+                            padding: "7px 14px",
+                            borderRadius: "11px",
+                            fontSize: "12.5px",
+                            fontWeight: 800,
+                            backgroundColor: state.badgeBg,
+                            color: state.badgeText,
+                          }}
+                        >
+                          {state.label}
+                        </span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            );
+          })()}
         </div>
       </div>
     </section>

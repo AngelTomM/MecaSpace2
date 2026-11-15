@@ -11,8 +11,8 @@ import { ETIQUETAS_LEGIBLES, MotorInferencia } from "./motorInferencia";
 const CREW_TEMPLATES = {
   koch: {
     id: "koch",
-    name: "Esp. Christina Koch",
-    role: "Especialista de Misión",
+    name: "Spec. Christina Koch",
+    role: "Mission Specialist",
     height: "170 cm",
     weight: "61 kg",
     bmi: "21.1",
@@ -35,8 +35,8 @@ const CREW_TEMPLATES = {
   },
   glover: {
     id: "glover",
-    name: "Cmdte. Victor Glover",
-    role: "Comandante de Misión",
+    name: "Cmdr. Victor Glover",
+    role: "Mission Commander",
     height: "183 cm",
     weight: "86 kg",
     bmi: "25.7",
@@ -60,7 +60,7 @@ const CREW_TEMPLATES = {
   kim: {
     id: "kim",
     name: "Dr. Jonny Kim",
-    role: "Médico de Vuelo / CMO",
+    role: "Flight Surgeon / CMO",
     height: "178 cm",
     weight: "77 kg",
     bmi: "24.3",
@@ -282,7 +282,7 @@ class EstadoConsola {
     const payload = {
       schema: "MecaSpace-StoreAndForward-v2",
       standard_ref: "NASA-STD-3001 Vol.1 Rev.C (V1 3004.a, V1 6002) & Vol.2 Rev.E (V2 10125)",
-      mission_context: `Tránsito a Marte | Día ${this.mission_day} | Latencia 20 min/sentido`,
+      mission_context: `Mars Transit | Day ${this.mission_day} | 20 min/way Latency`,
       crew_member: p.meta.name,
       crew_role: p.meta.role,
       generated_utc: new Date().toISOString(),
@@ -372,7 +372,7 @@ export async function handleLocalApi(url, options = {}) {
             Math.round((member.radiation_total + member.radiation_rate) * 10) / 10;
         }
         p.bitacora_acciones.unshift(
-          `[${nowTimeStr()}] Día de tránsito ${estado.mission_day} registrado`
+          `[${nowTimeStr()}] Transit day ${estado.mission_day} logged`
         );
         return estado.snapshot();
       }
@@ -425,12 +425,12 @@ export async function handleLocalApi(url, options = {}) {
         p.alarma_silenciada = false;
         p.simulador.inyectarSobrecargaCardiovascular(true);
         p.bitacora_acciones.unshift(
-          `[${nowTimeStr()}] SOS Torácico manual activado (V2 10178)`
+          `[${nowTimeStr()}] Manual Chest SOS activated`
         );
       } else {
         p.simulador.restaurarNominal(true);
         p.bitacora_acciones.unshift(
-          `[${nowTimeStr()}] Emergencia manual desactivada → retorno nominal`
+          `[${nowTimeStr()}] Manual emergency deactivated → nominal return`
         );
       }
       return estado.avanzarTick(true);

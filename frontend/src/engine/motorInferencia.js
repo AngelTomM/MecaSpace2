@@ -7,158 +7,158 @@ import {
 } from "./nasaReferencia";
 
 export const ETIQUETAS_LEGIBLES = {
-  presion_sistolica: "Presión Arterial Sistólica",
-  temp_corporal: "Temp. Cutánea (Astroskin)",
-  nivel_actividad: "Nivel de Actividad",
-  spo2: "Saturación O₂ (SpO₂)",
-  frec_respiratoria: "Frecuencia Respiratoria",
-  vol_respiratorio: "Volumen Respiratorio",
-  frec_cardiaca: "Frecuencia Cardíaca",
-  anomalia_ecg: "Anomalía ECG",
-  eficiencia_sueno: "Eficiencia del Sueño",
-  glucemia: "Glucemia (Azúcar en Sangre)",
-  horas_sueno: "Horas Diarias de Sueño",
-  estado_animo: "Estado de Ánimo",
+  presion_sistolica: "Systolic Blood Pressure",
+  temp_corporal: "Skin Temp. (Astroskin)",
+  nivel_actividad: "Activity Level",
+  spo2: "O₂ Saturation (SpO₂)",
+  frec_respiratoria: "Respiratory Rate",
+  vol_respiratorio: "Respiratory Volume",
+  frec_cardiaca: "Heart Rate",
+  anomalia_ecg: "ECG Anomaly",
+  eficiencia_sueno: "Sleep Efficiency",
+  glucemia: "Blood Glucose",
+  horas_sueno: "Daily Sleep Hours",
+  estado_animo: "Mood State",
 };
 
 export const PROCEDIMIENTOS_ELECTRONICOS = {
   "PROTO-CV-01": {
-    titulo: "Evento Cardiovascular Agudo / Dolor Torácico o Colapso",
-    referencias: "Consigna, Vol. 1 Tabla E.2-2, V1 3004.i, V1 5001-5003, V2 10178",
+    titulo: "Acute Cardiovascular Event / Chest Pain or Collapse",
+    referencias: "Mission Brief, Vol. 1 Table E.2-2",
     pasos: [
       {
         sistema: true,
         texto:
-          "[SISTEMA] Bloquear maniobras críticas y activar registro continuo de signos vitales y ECG (V1 3004.h).",
+          "[SYSTEM] Lock out critical maneuvers and activate continuous vital signs and ECG logging.",
       },
       {
         sistema: false,
         texto:
-          "Evaluar consciencia, respiración y pulso del tripulante; iniciar RCP/DEA si hay colapso (V1 5001-5002).",
+          "Assess crewmember consciousness, breathing, and pulse; initiate CPR/AED if collapsed.",
       },
       {
         sistema: false,
         texto:
-          "Convocar al Crew Medical Officer (CMO, V1 3006) para adquirir ECG de 3 derivaciones e imagenología por ecografía a bordo (V1 3004.i, V1 5003).",
+          "Summon Crew Medical Officer to acquire 3-lead ECG and onboard ultrasound imaging.",
       },
       {
         sistema: true,
         texto:
-          "[SISTEMA] Empaquetar trazado ECG, SHAP y signos vitales en lote cifrado store-and-forward para Tierra (V1 6002, V2 10125).",
+          "[SYSTEM] Package ECG trace, SHAP, and vital signs into encrypted store-and-forward batch for Earth.",
       },
     ],
   },
   "PROTO-RESP-02": {
-    titulo: "Hipoxia o Hipercapnia en Cabina Presurizada",
-    referencias: "V2 6003-6004, Tabla 6.2-1, V1 Rev. B 3.1.5.f, V1 3004.i",
+    titulo: "Hypoxia or Hypercapnia in Pressurized Cabin",
+    referencias: "V2 6003-6004, Table 6.2-1, V1 Rev. B 3.1.5.f",
     pasos: [
       {
         sistema: true,
         texto:
-          "[SISTEMA] Contrastar SpO₂ con sensores ambientales de cabina P_I O₂ (145–155 mmHg) y ppCO₂ (≤ 3 mmHg).",
+          "[SYSTEM] Cross-check SpO₂ with cabin environmental sensors P_I O₂ (145–155 mmHg) and ppCO₂ (≤ 3 mmHg).",
       },
       {
         sistema: false,
         texto:
-          "Suministrar oxígeno suplementario al 100 % si SpO₂ < 92 % o P_I O₂ < 127 mmHg y suspender actividad física (V2 10200).",
+          "Deliver 100% supplemental oxygen if SpO₂ < 92% or P_I O₂ < 127 mmHg and halt physical activity.",
       },
       {
         sistema: false,
-        texto: "Inspeccionar depuradores de CO₂ y sellado del módulo habitable.",
+        texto: "Inspect CO₂ scrubbers and habitable module seals.",
       },
       {
         sistema: true,
         texto:
-          "[SISTEMA] Si persiste hipoxemia < 90 %, escalar a ecografía pulmonar (V1 3004.i) y registro diferido (V1 6002).",
+          "[SYSTEM] If hypoxemia < 90% persists, escalate to lung ultrasound and deferred logging.",
       },
     ],
   },
   "PROTO-MET-03": {
-    titulo: "Privación de Sueño, Desalineación Circadiana y Desregulación Glucémica",
-    referencias: "V1 6001 (8,5 h), V2 8055, V1 4020, V2 6079 (NC-40), V2 6092",
+    titulo: "Sleep Deprivation, Circadian Misalignment & Glycemic Dysregulation",
+    referencias: "V1 6001 (8.5 h)",
     pasos: [
       {
         sistema: true,
         texto:
-          "[SISTEMA] Verificar déficit frente al objetivo de 8,5 h/día (V1 6001) y correlación metabólica/glucémica (V2 8055).",
+          "[SYSTEM] Verify deficit against 8.5 h/day target and metabolic/glycemic correlation.",
       },
       {
         sistema: false,
         texto:
-          "Si glucemia < 70 mg/dL en tripulante consciente, administrar 15–20 g de carbohidratos rápidos y reevaluar en 15 min.",
+          "If blood glucose < 70 mg/dL in a conscious crewmember, administer 15–20 g fast-acting carbs and re-evaluate in 15 min.",
       },
       {
         sistema: false,
         texto:
-          "Aplicar iluminación circadiana (≥ 250 lux EDI en vigilia / 8 ± 2 lux pre-sueño, V2 8055) y reprogramar tareas críticas fuera del nadir 1–7 AM.",
+          "Apply circadian lighting and reschedule critical tasks outside 1–7 AM nadir.",
       },
       {
         sistema: true,
         texto:
-          "[SISTEMA] Activar bloque de descanso protegido (NC-40, ≤ 0,02 lux) y envío store-and-forward al equipo médico (V1 6002).",
+          "[SYSTEM] Activate protected rest block and store-and-forward transmission to medical team.",
       },
     ],
   },
   "PROTO-TERM-04": {
-    titulo: "Hipotermia Central (< 35 °C) o Estrés Térmico Cutáneo/Central",
-    referencias: "Vol. 1 Apéndice C (< 35 °C), V2 6012-6014, Fig. 6.2-2, V2 11011",
+    titulo: "Core Hypothermia (< 35 °C) or Skin/Core Thermal Stress",
+    referencias: "Vol. 1 Appendix C (< 35 °C), Fig. 6.2-2",
     pasos: [
       {
         sistema: true,
         texto:
-          "[SISTEMA] Comparar temperatura cutánea (Astroskin) con temperatura central estimada (Vol. 1 Apéndice C; V2 11011).",
+          "[SYSTEM] Compare skin temperature (Astroskin) with estimated core temperature.",
       },
       {
         sistema: false,
         texto:
-          "Confirmar lectura con termometría central/oral; ante hipotermia (< 35,0 °C) aplicar recalentamiento progresivo y aislamiento térmico.",
+          "Confirm reading with core/oral thermometry; for hypothermia (< 35.0 °C) apply progressive rewarming and thermal insulation.",
       },
       {
         sistema: false,
         texto:
-          "Ante estrés térmico hipertérmico, activar enfriamiento LCVG o ajustar cabina a zona de confort (20–25 °C, 30–60 % HR).",
+          "For hyperthermic stress, activate LCVG cooling or adjust cabin to comfort zone (20–25 °C, 30–60% RH).",
       },
       {
         sistema: true,
         texto:
-          "[SISTEMA] Registrar tendencia térmica cada 5 min y adjuntar en expediente cifrado store-and-forward (V1 6002, V1 7001).",
+          "[SYSTEM] Log thermal trend every 5 min and attach to encrypted store-and-forward record.",
       },
     ],
   },
   "PROTO-COND-05": {
-    titulo: "Alteración del Estado de Ánimo o Sobrecarga Conductual",
-    referencias: "V1 3004.q, Tabla E.2-2 (*), V2 5007 (Bedford), V2 7071 (Privacidad), V1 6010",
+    titulo: "Mood Alteration or Behavioral Overload",
+    referencias: "V1 3004.q, Table E.2-2 (*) (Bedford) (Privacy)",
     pasos: [
       {
         sistema: true,
         texto:
-          "[SISTEMA] Habilitar sesión de protocolo conductual asíncrono en dispositivo privado (V1 3004.q, V2 7071).",
+          "[SYSTEM] Enable asynchronous behavioral protocol session on private device.",
       },
       {
         sistema: false,
         texto:
-          "Reducir carga cognitiva operativa (mantener escala Bedford ≤ 3 en nominal / ≤ 6 degradado, V2 5007).",
+          "Reduce operational cognitive workload.",
       },
       {
         sistema: true,
         texto:
-          "[SISTEMA] Preparar nota cifrada privada para Conferencia Psicológica Privada diferida (V1 6010, store-and-forward).",
+          "[SYSTEM] Prepare encrypted private note for deferred Private Psychological Conference.",
       },
     ],
   },
   "PROTO-NOM-00": {
-    titulo: "Vigilancia Nominal en Tránsito a Marte",
-    referencias: "V1 3004.h, V1 6001, V1 7001, V2 6001",
+    titulo: "Nominal Mars Transit Monitoring",
+    referencias: "V1 3004.h",
     pasos: [
       {
         sistema: true,
         texto:
-          "[SISTEMA] Registro continuo de tendencias en historia clínica electrónica cifrada (V1 3004.a, V1 7001).",
+          "[SYSTEM] Continuous trend logging in encrypted electronic medical record.",
       },
       {
         sistema: false,
         texto:
-          "Mantener recordatorios periódicos de medición manual de glucemia (mg/dL) y autorreporte de ánimo.",
+          "Maintain periodic reminders for manual blood glucose measurement (mg/dL) and mood self-report.",
       },
     ],
   },
@@ -209,7 +209,7 @@ class XgbTreeEvaluator {
       while (left[node] !== -1) {
         const fIdx = splitIdx[node];
         const fVal = xVec[fIdx];
-        const nextNode = fVal < splitCond[node] ? left[node] : right[node];
+        const nextNode = fVal < splitCond[node] ? left[node]: right[node];
         contribsByClass[cls][fIdx] += weights[nextNode] - weights[node];
         node = nextNode;
       }
@@ -255,7 +255,7 @@ export class MotorInferencia {
         rango_nominal: `${normMin} – ${normMax}`,
         shap_valor: sVal,
         magnitud_abs: Math.abs(sVal),
-        direccion: sVal >= 0 ? "Impulsa este estado" : "Atenúa este estado",
+        direccion: sVal >= 0 ? "Drives this state": "Mitigates this state",
       };
     });
 
@@ -361,15 +361,15 @@ export class MotorInferencia {
     cabinEnv,
     emergenciaManual,
   }) {
-    const tag = `[ALERTA: ${nivelNasa.toUpperCase()} | ${protocoloCodigo}]`;
+    const tag = `[ALERT: ${nivelNasa.toUpperCase()} | ${protocoloCodigo}]`;
     const tempCentral = Number(detInfo.temp_central_est);
 
     if (emergenciaManual) {
       return [
-        `${tag} Activación manual de emergencia (V2 10178): posible dolor torácico o colapso en tránsito.`,
+        `${tag} Manual emergency activation: possible chest pain or transit collapse.`,
         [
-          "Asegurar vía aérea, verificar respuesta/pulso e iniciar RCP o DEA si corresponde (V1 5001-5002).",
-          "EXCEDE ALCANCE (V2 10171): escalar a CMO (V1 3006) para ECG/ecografía a bordo (V1 3004.i, V1 5003) y envío store-and-forward (V1 6002).",
+          "Secure airway, verify response/pulse, and initiate CPR or AED if indicated.",
+          "EXCEEDS SCOPE: escalate to CMO for onboard ECG/ultrasound and store-and-forward dispatch.",
         ],
       ];
     }
@@ -377,20 +377,20 @@ export class MotorInferencia {
     if (claseRiesgo === 0 && nivelNasa === "Nominal") {
       const topVars = top3Shap.slice(0, 2).map((i) => i.variable).join(", ");
       return [
-        `${tag} Estabilidad fisiológica en microgravedad confirmada por ${topVars} dentro de línea base.`,
+        `${tag} Physiological stability in microgravity confirmed by ${topVars} within baseline.`,
         [
-          "Continuar cronograma nominal de tránsito y verificar cumplimiento de 8,5 h de sueño (V1 6001).",
-          "Mantener vigilancia continua Astroskin/Actiwatch y registro periódico de glucemia (mg/dL) y ánimo.",
+          "Continue nominal transit schedule and verify 8.5 h sleep compliance.",
+          "Maintain continuous Astroskin/Actiwatch monitoring and periodic blood glucose (mg/dL) and mood logging.",
         ],
       ];
     }
 
     if (nivelNasa === "Advisory") {
       return [
-        `${tag} Datos manuales obsoletos (estado Cian, V2 10020) o desviación menor sin criterio Caution.`,
+        `${tag} Stale manual data or minor deviation below Caution threshold.`,
         [
-          "Actualizar medición capilar de glucemia (mg/dL) y autorreporte breve de estado de ánimo.",
-          "Mantener registro continuo de tendencias en historia clínica cifrada (V1 3004.a, V1 7001).",
+          "Update capillary blood glucose measurement (mg/dL) and brief mood self-report.",
+          "Maintain continuous trend logging in encrypted medical record.",
         ],
       ];
     }
@@ -400,18 +400,18 @@ export class MotorInferencia {
       const ppco2 = cabinEnv.ppco2_mmhg ?? 1.8;
       if (claseRiesgo === 2 || excedeAlcance) {
         return [
-          `${tag} Compromiso respiratorio severo (SpO₂=${lectura.spo2} %, P_I O₂=${piO2} mmHg, ppCO₂=${ppco2} mmHg).`,
+          `${tag} Severe respiratory compromise (SpO₂=${lectura.spo2}%, P_I O₂=${piO2} mmHg, ppCO₂=${ppco2} mmHg).`,
           [
-            "Colocar oxígeno suplementario al 100 %, suspender esfuerzo (V2 10200) y aislar fallo ECLSS / CO₂ (V2 6004).",
-            "EXCEDE ALCANCE (V2 10171): escalar a ecografía pulmonar/ECG a bordo (V1 3004.i) y envío store-and-forward (V1 6002).",
+            "Deliver 100% supplemental oxygen, halt exertion, and isolate ECLSS / CO₂ failure.",
+            "EXCEEDS SCOPE: escalate to onboard lung ultrasound/ECG and store-and-forward dispatch.",
           ],
         ];
       }
       return [
-        `${tag} Hipoxia o hipercapnia leve (SpO₂=${lectura.spo2} %, FR=${lectura.frec_respiratoria} rpm, P_I O₂=${piO2} mmHg).`,
+        `${tag} Mild hypoxia or hypercapnia (SpO₂=${lectura.spo2}%, RR=${lectura.frec_respiratoria} rpm, P_I O₂=${piO2} mmHg).`,
         [
-          "Ejecutar respiración diafragmática controlada 5 min y verificar depuración ppCO₂ ≤ 3 mmHg (V2 6004).",
-          "Repetir oximetría Astroskin en 5 min y validar si el pico responde a actividad física.",
+          "Perform controlled diaphragmatic breathing for 5 min and verify ppCO₂ scrubbing ≤ 3 mmHg.",
+          "Repeat Astroskin oximetry in 5 min and validate whether peak correlates with physical activity.",
         ],
       ];
     }
@@ -419,27 +419,27 @@ export class MotorInferencia {
     if (protocoloCodigo === "PROTO-TERM-04") {
       if (tempCentral < 35.0) {
         return [
-          `${tag} Hipotermia central estimada (${tempCentral.toFixed(2)} °C < 35,0 °C Vol. 1 Apéndice C; piel=${lectura.temp_corporal} °C).`,
+          `${tag} Estimated core hypothermia (${tempCentral.toFixed(2)} °C < 35.0 °C Vol. 1 Appendix C; skin=${lectura.temp_corporal} °C).`,
           [
-            "Confirmar temperatura central/oral, activar recalentamiento progresivo y elevar cabina a 22–25 °C (V2 6012).",
-            "EXCEDE ALCANCE (V2 10171): vigilar ECG continuo (V1 3004.i) cada 5 min y transmitir paquete store-and-forward (V1 6002).",
+            "Confirm core/oral temperature, activate progressive rewarming, and raise cabin to 22–25 °C.",
+            "EXCEEDS SCOPE: monitor continuous ECG every 5 min and transmit store-and-forward package.",
           ],
         ];
       }
       if (claseRiesgo === 2 || excedeAlcance) {
         return [
-          `${tag} Sobrecarga térmica crítica (piel=${lectura.temp_corporal} °C, central est.=${tempCentral.toFixed(2)} °C, V2 11011).`,
+          `${tag} Critical thermal overload (skin=${lectura.temp_corporal} °C, est. core=${tempCentral.toFixed(2)} °C).`,
           [
-            "Activar prenda de enfriamiento líquido LCVG al máximo y cesar actividad metabólica intensa.",
-            "EXCEDE ALCANCE (V2 10171): evaluar ECG/hemodinamia por CMO (V1 3004.i) y enviar registro store-and-forward (V1 6002).",
+            "Activate liquid cooling garment (LCVG) at maximum and cease intense metabolic activity.",
+            "EXCEEDS SCOPE: evaluate ECG/hemodynamics via CMO and send store-and-forward log.",
           ],
         ];
       }
       return [
-        `${tag} Deriva térmica preventiva (piel=${lectura.temp_corporal} °C, central est.=${tempCentral.toFixed(2)} °C).`,
+        `${tag} Preventive thermal drift (skin=${lectura.temp_corporal} °C, est. core=${tempCentral.toFixed(2)} °C).`,
         [
-          "Ajustar ambiente térmico de cabina hacia confort (20–25 °C, Fig. 6.2-2) e hidratar con 500 ml.",
-          "Validar temperatura oral/central para distinguir variación cutánea de central (V2 11011).",
+          "Adjust cabin thermal environment toward comfort and hydrate with 500 ml.",
+          "Validate oral/core temperature to distinguish skin variation from core shift.",
         ],
       ];
     }
@@ -447,46 +447,46 @@ export class MotorInferencia {
     if (protocoloCodigo === "PROTO-MET-03") {
       if (claseRiesgo === 2 || excedeAlcance) {
         return [
-          `${tag} Desregulación metabólica y privación de sueño (${lectura.horas_sueno} h vs 8,5 h V1 6001; glucemia=${lectura.glucemia} mg/dL).`,
+          `${tag} Metabolic dysregulation and sleep deprivation.`,
           [
-            "Corregir glucemia inmediata (15–20 g glucosa oral si < 70 mg/dL) y transferir tareas críticas a otro tripulante.",
-            "EXCEDE ALCANCE (V2 10171): cumplir recuperación de sueño protegida (NC-40, ≤ 0,02 lux) y enviar reporte diferido (V1 6002).",
+            "Correct glucose immediately (15–20 g oral glucose if < 70 mg/dL) and transfer critical tasks to another crewmember.",
+            "EXCEEDS SCOPE: enforce protected sleep recovery and send deferred report.",
           ],
         ];
       }
       return [
-        `${tag} Déficit acumulado de sueño (${lectura.horas_sueno} h) con deriva glucémica (${lectura.glucemia} mg/dL, V2 8055).`,
+        `${tag} Cumulative sleep deficit (${lectura.horas_sueno} h) with glycemic drift.`,
         [
-          "Aplicar iluminación circadiana (≥ 250 lux EDI vigilia / 8 ± 2 lux pre-sueño, V2 8055) y asegurar ingesta calórica (V1 4020).",
-          "Evitar tareas críticas en nadir circadiano (1–7 AM relativo) y recontrolar glucemia en 30 min.",
+          "Apply circadian lighting and ensure caloric intake.",
+          "Avoid critical tasks during circadian nadir (1–7 AM relative) and recheck glucose in 30 min.",
         ],
       ];
     }
 
     if (protocoloCodigo === "PROTO-COND-05") {
       return [
-        `${tag} Alteración afectiva/conductual detectada (ánimo=${lectura.estado_animo}/10, Tabla E.2-2).`,
+        `${tag} Affective/behavioral alteration detected.`,
         [
-          "Iniciar protocolo conductual asíncrono en dispositivo privado (V1 3004.q, privacidad V2 7071).",
-          "Reducir carga cognitiva (Bedford ≤ 3, V2 5007) y registrar nota cifrada para PPC diferida (V1 6010).",
+          "Start asynchronous behavioral protocol on private device.",
+          "Reduce cognitive workload and log encrypted note for deferred PPC.",
         ],
       ];
     }
 
     if (claseRiesgo === 2 || excedeAlcance) {
       return [
-        `${tag} Evento cardiovascular agudo (FC=${lectura.frec_cardiaca.toFixed(0)} lpm, PAS=${lectura.presion_sistolica} mmHg, ECG=${lectura.anomalia_ecg}).`,
+        `${tag} Acute cardiovascular event (HR=${lectura.frec_cardiaca.toFixed(0)} bpm, SBP=${lectura.presion_sistolica} mmHg, ECG=${lectura.anomalia_ecg}).`,
         [
-          "Detener maniobras, adoptar reposo inmediato y evaluar síntomas torácicos o colapso (Tabla E.2-2).",
-          "EXCEDE ALCANCE (V2 10171): activar CMO (V1 3006) para ECG 3-derivaciones y ecografía a bordo (V1 3004.i, V1 5003) + store-and-forward (V1 6002).",
+          "Halt maneuvers, adopt immediate rest, and assess chest symptoms or collapse.",
+          "EXCEEDS SCOPE: activate CMO for 3-lead ECG and onboard ultrasound + store-and-forward.",
         ],
       ];
     }
     return [
-      `${tag} Sobrecarga cardiovascular moderada (FC=${lectura.frec_cardiaca.toFixed(0)} lpm, PAS=${lectura.presion_sistolica} mmHg).`,
+      `${tag} Moderate cardiovascular overload (HR=${lectura.frec_cardiaca.toFixed(0)} bpm, SBP=${lectura.presion_sistolica} mmHg).`,
       [
-        "Reducir carga física en 50 % y aplicar hidratación isotónica con reposo neutro (V2 7042).",
-        "Vigilar tendencia de ECG y presión arterial cada 5 min hasta retorno a línea base (V1 3004.h).",
+        "Reduce physical workload by 50% and apply isotonic hydration with neutral rest.",
+        "Monitor ECG and blood pressure trend every 5 min until return to baseline.",
       ],
     ];
   }
@@ -498,7 +498,7 @@ export class MotorInferencia {
     datosObsoletos = false,
   }) {
     const t0 = performance.now();
-    const cabin = cabinEnv || { ...CABIN_ENV_NOMINAL };
+    const cabin = cabinEnv || {...CABIN_ENV_NOMINAL };
     const fila = {};
     const xVec = FEATURE_NAMES.map((v) => {
       const val = Number(lectura[v]);
@@ -513,7 +513,7 @@ export class MotorInferencia {
     if (proba[1] > proba[claseXgb]) claseXgb = 1;
     if (proba[2] > proba[claseXgb]) claseXgb = 2;
 
-    const claseRiesgo = detInfo.disparada ? 2 : claseXgb;
+    const claseRiesgo = detInfo.disparada ? 2: claseXgb;
     const etiqueta = RISK_LABELS[claseRiesgo];
     const probabilidades = {
       [RISK_LABELS[0]]: proba[0],
@@ -590,7 +590,7 @@ export class MotorInferencia {
       shap_todos: shapTodos,
       diagnostico,
       directivas: directivas.slice(0, 2),
-      origen_diagnostico: "Respaldo Reglas NASA (Web Offline)",
+      origen_diagnostico: "NASA Rules Engine (Web Offline)",
       llm_actualizado: true,
       timestamp,
     };
@@ -600,8 +600,8 @@ export class MotorInferencia {
     const preguntaLimpia = String(pregunta || "").trim();
     if (!preguntaLimpia) {
       return {
-        respuesta: "Ingresa una consulta operativa o clínica.",
-        origen: "Sistema",
+        respuesta: "Enter an operational or clinical query.",
+        origen: "System",
       };
     }
 
@@ -609,18 +609,18 @@ export class MotorInferencia {
     const nivelNasa = evalActual.nivel_nasa;
     const protocolo = evalActual.protocolo_codigo;
     const directivasTxt = evalActual.directivas
-      .map((d, i) => `(${i + 1}) ${d}`)
-      .join(" ");
+.map((d, i) => `(${i + 1}) ${d}`)
+.join(" ");
     const factoresTxt = evalActual.top3_shap
-      .map((item) => `${item.nombre} (${item.valor} ${item.unidad})`)
-      .join(", ");
+.map((item) => `${item.nombre} (${item.valor} ${item.unidad})`)
+.join(", ");
     const avisoAlcance = evalActual.excede_alcance
-      ? " Aviso V2 10171: el cuadro excede el alcance del triaje automático; escalar a ECG/ecografía a bordo (V1 3004.i) por el CMO (V1 3006) y empaquetar para transmisión diferida store-and-forward (V1 6002)."
-      : "";
+      ? " Notice V2 10171: presentation exceeds automated triage scope; escalate to onboard ECG/ultrasound by CMO and package for deferred store-and-forward transmission."
+: "";
 
     return {
-      respuesta: `[Alerta ${nivelNasa} | ${protocolo}] ${evalActual.diagnostico} Factores SHAP determinantes: ${factoresTxt}. Acciones operativas: ${directivasTxt}.${avisoAlcance}`,
-      origen: "Respaldo Reglas NASA (Web Offline)",
+      respuesta: `[Alert ${nivelNasa} | ${protocolo}] ${evalActual.diagnostico} Key SHAP factors: ${factoresTxt}. Operational actions: ${directivasTxt}.${avisoAlcance}`,
+      origen: "NASA Rules Engine (Web Offline)",
     };
   }
 }

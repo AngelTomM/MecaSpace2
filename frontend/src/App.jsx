@@ -7,6 +7,7 @@ import ParametersTab from "./components/ParametersTab";
 import TestsAndAITab from "./components/TestsAndAITab";
 import CrewAndTraceabilityTab from "./components/CrewAndTraceabilityTab";
 import PvtModal from "./components/PvtModal";
+import AssistantModal from "./components/AssistantModal";
 
 function playDualAlertTone(levelKey) {
   if (levelKey === "nominal" || levelKey === "advisory" || levelKey === "stale") return;
@@ -53,6 +54,7 @@ export default function App() {
   const [focusedMetric, setFocusedMetric] = useState(null);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [pvtOpen, setPvtOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useState(false);
   const [toast, setToast] = useState(null);
 
   const toastTimerRef = useRef(null);
@@ -122,7 +124,7 @@ export default function App() {
           <div style={{ textAlign: "center", padding: "32px" }}>
             <h2 style={{ margin: 0, fontSize: "20px", fontWeight: 800 }}>AHBM v2 · MecaSpace</h2>
             <p style={{ margin: "8px 0 0", fontSize: "13px", color: "#475569" }}>
-              Conectando con telemetría local y motor XGBoost/SHAP offline...
+              Connecting to telemetry &amp; offline XGBoost/SHAP engine...
             </p>
           </div>
         </div>
@@ -133,13 +135,13 @@ export default function App() {
   const m = extractUiMetrics(data);
   const ui = data.ui_state || {};
   const roster = data.crew_roster || [];
-  const activeCrew = roster.find((c) => c.id === data.active_crew_id) || { name: "Esp. Christina Koch" };
+  const activeCrew = roster.find((c) => c.id === data.active_crew_id) || { name: "Spec. Christina Koch" };
 
   const rutinaKeys = [
-    ["glucemia", "Glucemia"],
-    ["animo", "Ánimo"],
-    ["sueno", "Sueño 8,5 h"],
-    ["hidratacion", "Hidratación"],
+    ["glucemia", "Glucose"],
+    ["animo", "Mood"],
+    ["sueno", "Sleep 8.5 h"],
+    ["hidratacion", "Hydration"],
   ];
   const doneRoutine = rutinaKeys.filter(([k]) => ui.rutina_diaria?.[k]).length;
 
@@ -171,7 +173,7 @@ export default function App() {
           <button
             type="button"
             className="brand-btn"
-            title="AHBM — Monitor de Salud Espacial"
+            title="AHBM — Space Health Monitor"
             onClick={() => setTab(1)}
           >
             <div className="brand-icon-box">
@@ -180,12 +182,12 @@ export default function App() {
             <span className="brand-label">AHBM</span>
           </button>
 
-          <nav className="sidebar-nav" aria-label="Navegación principal">
+          <nav className="sidebar-nav" aria-label="Main navigation">
             {[
-              { id: 1, label: "Resumen" },
-              { id: 2, label: "Parámetros", dot: alertSystem.activeCount > 0 },
+              { id: 1, label: "Summary" },
+              { id: 2, label: "Parameters", dot: alertSystem.activeCount > 0 },
               { id: 3, label: "Tests" },
-              { id: 4, label: "Tripulación" },
+              { id: 4, label: "Crew" },
             ].map((item) => (
               <button
                 key={item.id}
@@ -222,24 +224,25 @@ export default function App() {
               onToggleEmergency={(active) => {
                 apiPost("/api/emergency", { active });
                 showToast(
-                  active ? "⚡ EMERGENCIA V2 10178: Evento torácico activo" : "SOS Torácico cerrado",
+                  active ? "⚡ EMERGENCY V2 10178: Thoracic event active" : "Thoracic SOS cleared",
                   active ? "#DC2626" : "#10B981"
                 );
               }}
               onAlarmAction={(action) => apiPost("/api/alarm", { action })}
               onIntervention={(tipo, etiqueta) => {
                 apiPost("/api/intervention", { tipo, etiqueta });
-                showToast(`Contramedida aplicada: ${etiqueta}`, "#10B981");
+                showToast(`Countermeasure applied: ${etiqueta}`, "#10B981");
               }}
               onClearStale={() => {
                 apiPost("/api/manual", {
                   glucemia: m.glucose,
                   estado_animo: m.moodScore,
                 });
-                showToast("Mediciones manuales validadas (fin estado Cian)", "#10B981");
+                showToast("Manual readings validated (Cyan state cleared)", "#10B981");
               }}
               onFocusMetric={handleFocusMetric}
               onGoToParameters={() => setTab(2)}
+              onOpenAssistant={() => setAssistantOpen(true)}
             />
           )}
 
@@ -251,16 +254,16 @@ export default function App() {
               onAdjustMetric={(varName, delta) => apiPost("/api/adjust", { var: varName, delta })}
               onAdvanceDay={() => {
                 apiPost("/api/adjust", { action: "advance_day" });
-                showToast(`Día ${data.mission_day + 1} registrado · dosis acumulada actualizada`, "#2563EB");
+                showToast(`Day ${data.mission_day + 1} logged · cumulative dose updated`, "#2563EB");
               }}
               onToggleInhibit={(key) => apiPost("/api/inhibit", { key })}
               onIntervention={(tipo, etiqueta) => {
                 apiPost("/api/intervention", { tipo, etiqueta });
-                showToast(`Contramedida ejecutada: ${etiqueta}`, "#10B981");
+                showToast(`Countermeasure executed: ${etiqueta}`, "#10B981");
               }}
               onClearStale={() => {
                 apiPost("/api/manual", { glucemia: m.glucose, estado_animo: m.moodScore });
-                showToast("Datos manuales actualizados", "#10B981");
+                showToast("Manual data updated", "#10B981");
               }}
               onOpenPvt={() => setPvtOpen(true)}
               onGoToTests={() => setTab(3)}
@@ -285,70 +288,24 @@ export default function App() {
                 apiPost("/api/crew", { crew_id: cid });
                 setTab(1);
                 const selected = roster.find((c) => c.id === cid);
-                showToast(`Astronauta activo: ${selected?.name || cid}`, "#10B981");
+                showToast(`Active crew member: ${selected?.name || cid}`, "#10B981");
               }}
             />
           )}
         </main>
       </div>
 
-      {/* Dock inferior discreto */}
-      <footer className="bottom-dock">
-        <div className="dock-group">
-          <button
-            type="button"
-            className="pill-btn sm"
-            onClick={() => apiPost("/api/control", { action: "toggle_play" })}
-          >
-            {ui.simulacion_activa ? "⏸ Pausar" : "▶ Reanudar"}
-          </button>
-          <span style={{ fontSize: "11px", fontWeight: 700, color: "#64748B" }}>
-            Rutina {doneRoutine}/4
-          </span>
-          {rutinaKeys.map(([key, lbl]) => (
-            <button
-              key={key}
-              type="button"
-              className={`pill-btn sm ${ui.rutina_diaria?.[key] ? "green" : ""}`}
-              onClick={() => apiPost("/api/routine", { key })}
-            >
-              {ui.rutina_diaria?.[key] ? "✓" : "○"} {lbl}
-            </button>
-          ))}
-        </div>
-
-        <div className="dock-group">
-          <select
-            aria-label="Seleccionar escenario de simulación"
-            className="pill-btn sm"
-            value={ui.escenario_actual}
-            onChange={(e) => apiPost("/api/scenario", { escenario: e.target.value })}
-          >
-            <option value="nominal">🟢 Escenario: Nominal</option>
-            <option value="sueno_glucemia_preventiva">😴 Sueño + Glucemia (Caution)</option>
-            <option value="evento_cardiovascular_agudo">❤️ Colapso Cardiovascular</option>
-            <option value="hipoxia_critica">🫁 Hipoxia Crítica</option>
-            <option value="hipotermia_critica">❄️ Hipotermia Central</option>
-            <option value="estres_termico_critico">🌡️ Estrés Térmico</option>
-          </select>
-          <button
-            type="button"
-            className={`pill-btn sm ${ui.datos_manuales_obsoletos ? "blue" : ""}`}
-            onClick={() => apiPost("/api/manual", { toggle_stale: true })}
-          >
-            ⏱ Dato Cian
-          </button>
-        </div>
-      </footer>
-
       <PvtModal
         open={pvtOpen}
+        crewId={activeCrew.id}
         crewName={activeCrew.name}
         currentPvt={m.pvt}
         onClose={() => setPvtOpen(false)}
         onSavePvt={(avg) => apiPost("/api/adjust", { var: "pvt_ms", value: avg })}
         showToast={showToast}
       />
+
+      <AssistantModal open={assistantOpen} onClose={() => setAssistantOpen(false)} />
     </div>
   );
 }

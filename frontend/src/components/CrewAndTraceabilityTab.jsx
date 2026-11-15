@@ -3,13 +3,13 @@ import { handleExportDownload } from "../engine/localApi";
 import { NASA_LEVELS, evaluateIndicator, mapBackendLevelToKey, pickHighestSeverity } from "../data/nasaProtocols";
 
 const TRACEABILITY_ROWS = [
-  { ind: "1. Presión arterial", src: "Astroskin (est.) / manguito clínico", nasa: "V1 3004.h, Tabla E.2-2, V2 7042" },
-  { ind: "2. Frecuencia cardíaca", src: "Astroskin (pulso / ECG)", nasa: "V1 3004.h-i, V2 11011 (>140 bpm deterioro traje)" },
-  { ind: "3. Azúcar en sangre (mg/dL)", src: "Glucómetro externo / carga manual", nasa: "Consigna, V1 4020, V2 8055 (glucosa circadiana)" },
-  { ind: "4. Temperatura corporal", src: "Astroskin (piel) + central estimada", nasa: "Vol. 1 Ap. C (<35 °C central), V2 6014, V2 11011" },
-  { ind: "5. Horas diarias de sueño", src: "Actiwatch Spectrum", nasa: "V1 6001 (8,5 h), V2 6079 (NC-40), V2 6092, V2 8055" },
-  { ind: "6. Estado de ánimo", src: "Autorreporte multimodal / PANAS", nasa: "V1 3004.q, Tabla E.2-2 (*), V2 7071 (privacidad)" },
-  { ind: "7. Radiación ionizante", src: "Dosimetría de tránsito espacio libre", nasa: "V1 4033 (<1,3 mSv/d), V1 4031 (<250 mSv), V2 6164" },
+  { ind: "1. Blood Pressure", src: "Astroskin (est.) / clinical cuff", nasa: "V1 3004.h, Table E.2-2, V2 7042" },
+  { ind: "2. Heart Rate", src: "Astroskin (pulse / ECG)", nasa: "V1 3004.h-i, V2 11011 (>140 bpm suit degradation)" },
+  { ind: "3. Blood Glucose (mg/dL)", src: "External glucometer / manual entry", nasa: "V1 4020, V2 8055 (circadian glucose)" },
+  { ind: "4. Body Temperature", src: "Astroskin (skin) + estimated core", nasa: "Vol. 1 App. C (<35 °C core), V2 6014, V2 11011" },
+  { ind: "5. Daily Sleep Hours", src: "Actiwatch Spectrum", nasa: "V1 6001 (8.5 h), V2 6079 (NC-40), V2 6092, V2 8055" },
+  { ind: "6. Mood State", src: "Multimodal self-report / PANAS", nasa: "V1 3004.q, Table E.2-2 (*), V2 7071 (privacy)" },
+  { ind: "7. Ionizing Radiation", src: "Free-space transit dosimetry", nasa: "V1 4033 (<1.3 mSv/d), V1 4031 (<250 mSv), V2 6164" },
 ];
 
 function CrewAvatar({ crew, ringColor }) {
@@ -37,9 +37,9 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
     <section className="screen-section">
       <header className="screen-header screen-header-bordered">
         <div>
-          <h1 className="screen-title">Tripulación</h1>
+          <h1 className="screen-title">Crew</h1>
           <p className="screen-subtitle">
-            Selecciona un tripulante para ver su estado
+            Select a crew member to view their status
           </p>
         </div>
         <a
@@ -48,7 +48,7 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
           onClick={handleExportDownload}
           className="pill-btn dark"
         >
-          📦 Descargar Store-and-Forward (JSON + SHA-256)
+          📦 Download Store-and-Forward (JSON + SHA-256)
         </a>
       </header>
 
@@ -133,7 +133,7 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
                     </span>
                     {isCurrent && (
                       <span className="mono" style={{ fontSize: "11px", fontWeight: 800, color: "#34D399" }}>
-                        ACTIVO
+                        ACTIVE
                       </span>
                     )}
                   </div>
@@ -144,10 +144,10 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
 
               <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "8px", textAlign: "center" }}>
                 {[
-                  ["Altura", crew.height],
-                  ["Peso", crew.weight],
-                  ["IMC", crew.bmi],
-                  ["Grupo", crew.blood],
+                  ["Height", crew.height],
+                  ["Weight", crew.weight],
+                  ["BMI", crew.bmi],
+                  ["Blood", crew.blood],
                 ].map(([k, v]) => (
                   <div
                     key={k}
@@ -176,12 +176,12 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
                   borderTop: `1px solid ${isCurrent ? "#1E293B" : "#E5DFD3"}`,
                 }}
               >
-                <div>PA: <strong>{Math.round(m.bpSys)}/{Math.round(m.bpDia)}</strong></div>
-                <div>FC: <strong>{Math.round(m.hr)} bpm</strong></div>
-                <div>Azúcar: <strong>{Math.round(m.glucose)} mg/dL</strong></div>
-                <div>Piel/Cent: <strong>{m.temp.toFixed(1)}/{m.tempCentral.toFixed(1)}°C</strong></div>
-                <div>Sueño: <strong>{m.sleep.toFixed(1)} h</strong></div>
-                <div>Ánimo: <strong>{m.moodPct} %</strong></div>
+                <div>BP: <strong>{Math.round(m.bpSys)}/{Math.round(m.bpDia)}</strong></div>
+                <div>HR: <strong>{Math.round(m.hr)} bpm</strong></div>
+                <div>Glucose: <strong>{Math.round(m.glucose)} mg/dL</strong></div>
+                <div>Skin/Core: <strong>{m.temp.toFixed(1)}/{m.tempCentral.toFixed(1)}°C</strong></div>
+                <div>Sleep: <strong>{m.sleep.toFixed(1)} h</strong></div>
+                <div>Mood: <strong>{m.moodPct}%</strong></div>
                 <div>Rad: <strong>{m.radiationTotal.toFixed(1)} mSv</strong></div>
                 <div>PVT: <strong>{Math.round(m.pvt)} ms</strong></div>
               </div>
@@ -190,12 +190,12 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
         })}
       </div>
 
-      {/* Trazabilidad normativa desplegable para mantener la vista limpia */}
+      {/* Collapsible normative traceability */}
       <details className="white-panel" style={{ cursor: "pointer" }}>
         <summary style={{ fontSize: "14px", fontWeight: 800, listStyle: "none", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span>Trazabilidad Normativa NASA-STD-3001 y Referencias OSDR</span>
+          <span>NASA-STD-3001 Traceability &amp; OSDR References</span>
           <span className="mono" style={{ fontSize: "11px", color: "#64748B" }}>
-            Latencia ML: {res.latencia_ml_ms ?? 1.5} ms · Ver detalles ▾
+            ML Latency: {res.latencia_ml_ms ?? 1.5} ms · View details ▾
           </span>
         </summary>
 
@@ -204,9 +204,9 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
             <table className="nasa-table">
               <thead>
                 <tr>
-                  <th>Indicador Central</th>
-                  <th>Arquitectura Instrumental</th>
-                  <th>Citas y Requisitos NASA-STD-3001</th>
+                  <th>Core Indicator</th>
+                  <th>Instrumental Architecture</th>
+                  <th>NASA-STD-3001 Citations</th>
                 </tr>
               </thead>
               <tbody>
@@ -240,12 +240,12 @@ export default function CrewAndTraceabilityTab({ data, onSelectCrewFromCard }) {
         </div>
       </details>
 
-      {/* Bitácora */}
+      {/* Decision Log */}
       <div className="white-panel">
-        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800 }}>Bitácora de Decisiones</h3>
+        <h3 style={{ margin: 0, fontSize: "15px", fontWeight: 800 }}>Decision Log</h3>
         {!ui.bitacora_acciones || ui.bitacora_acciones.length === 0 ? (
           <p style={{ margin: 0, fontSize: "12px", color: "#64748B" }}>
-            Sin intervenciones registradas en esta sesión.
+            No interventions recorded in this session.
           </p>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>

@@ -2,7 +2,7 @@ import { CABIN_ENV_NOMINAL, FEATURE_NAMES } from "./nasaReferencia";
 
 export const ESCENARIOS_OBJETIVO = {
   nominal: {
-    label: "Estado Nominal (Tránsito en Microgravedad)",
+    label: "Nominal State (Microgravity Transit)",
     base: {
       presion_sistolica: 116.0,
       temp_corporal: 36.2,
@@ -31,10 +31,10 @@ export const ESCENARIOS_OBJETIVO = {
       horas_sueno: 0.05,
       estado_animo: 0.1,
     },
-    cabin: { ...CABIN_ENV_NOMINAL },
+    cabin: {...CABIN_ENV_NOMINAL },
   },
   sueno_glucemia_preventiva: {
-    label: "Privación Acumulada de Sueño + Desregulación Glucémica (Caution)",
+    label: "Cumulative Sleep Deprivation + Glycemic Dysregulation (Caution)",
     base: {
       presion_sistolica: 108.0,
       temp_corporal: 35.95,
@@ -63,10 +63,10 @@ export const ESCENARIOS_OBJETIVO = {
       horas_sueno: 0.08,
       estado_animo: 0.15,
     },
-    cabin: { ...CABIN_ENV_NOMINAL },
+    cabin: {...CABIN_ENV_NOMINAL },
   },
   sueno_glucemia_critica: {
-    label: "Privación Severa de Sueño + Hipoglucemia Metabólica (Warning)",
+    label: "Severe Sleep Deprivation + Metabolic Hypoglycemia (Warning)",
     base: {
       presion_sistolica: 99.0,
       temp_corporal: 35.7,
@@ -95,10 +95,10 @@ export const ESCENARIOS_OBJETIVO = {
       horas_sueno: 0.08,
       estado_animo: 0.18,
     },
-    cabin: { ...CABIN_ENV_NOMINAL },
+    cabin: {...CABIN_ENV_NOMINAL },
   },
   evento_cardiovascular_agudo: {
-    label: "Evento Cardiovascular Agudo (Dolor Torácico / Colapso en Tránsito)",
+    label: "Acute Cardiovascular Event (Chest Pain / Transit Collapse)",
     base: {
       presion_sistolica: 162.0,
       temp_corporal: 36.8,
@@ -127,10 +127,10 @@ export const ESCENARIOS_OBJETIVO = {
       horas_sueno: 0.05,
       estado_animo: 0.15,
     },
-    cabin: { ...CABIN_ENV_NOMINAL },
+    cabin: {...CABIN_ENV_NOMINAL },
   },
   sobrecarga_cardiovascular_preventiva: {
-    label: "Sobrecarga Cardiovascular Moderada (Caution)",
+    label: "Moderate Cardiovascular Overload (Caution)",
     base: {
       presion_sistolica: 134.0,
       temp_corporal: 36.75,
@@ -159,10 +159,10 @@ export const ESCENARIOS_OBJETIVO = {
       horas_sueno: 0.05,
       estado_animo: 0.12,
     },
-    cabin: { ...CABIN_ENV_NOMINAL },
+    cabin: {...CABIN_ENV_NOMINAL },
   },
   hipoxia_preventiva: {
-    label: "Hipoxia / Hipercapnia Leve de Cabina (Caution)",
+    label: "Mild Cabin Hypoxia / Hypercapnia (Caution)",
     base: {
       presion_sistolica: 119.0,
       temp_corporal: 36.25,
@@ -199,7 +199,7 @@ export const ESCENARIOS_OBJETIVO = {
     },
   },
   hipoxia_critica: {
-    label: "Hipoxia Severa / Fallo Atmosférico de Cabina (Emergency)",
+    label: "Severe Hypoxia / Cabin Atmosphere Failure (Emergency)",
     base: {
       presion_sistolica: 122.0,
       temp_corporal: 36.2,
@@ -236,7 +236,7 @@ export const ESCENARIOS_OBJETIVO = {
     },
   },
   hipotermia_critica: {
-    label: "Hipotermia Central < 35 °C (Vol. 1 Apéndice C)",
+    label: "Core Hypothermia < 35 °C",
     base: {
       presion_sistolica: 87.0,
       temp_corporal: 33.9,
@@ -374,10 +374,10 @@ export class SimuladorSensores {
     this._suavizado = clip(suavizado, 0.1, 1.0);
     this._tick = 0;
     this.escenario_actual = "nominal";
-    this.valores_actuales = { ...ESCENARIOS_OBJETIVO.nominal.base };
-    this._objetivo_actual = { ...ESCENARIOS_OBJETIVO.nominal.base };
-    this._ruido_actual = { ...ESCENARIOS_OBJETIVO.nominal.ruido };
-    this._cabina_actual = { ...ESCENARIOS_OBJETIVO.nominal.cabin };
+    this.valores_actuales = {...ESCENARIOS_OBJETIVO.nominal.base };
+    this._objetivo_actual = {...ESCENARIOS_OBJETIVO.nominal.base };
+    this._ruido_actual = {...ESCENARIOS_OBJETIVO.nominal.ruido };
+    this._cabina_actual = {...ESCENARIOS_OBJETIVO.nominal.cabin };
     this._manual_overrides = {};
     this.intervenciones_aplicadas = [];
   }
@@ -385,18 +385,18 @@ export class SimuladorSensores {
   aplicarIntervencion(tipoIntervencion) {
     this._manual_overrides = {};
     const mensajes = {
-      oxigeno_100: "Oxígeno suplementario al 100 % aplicado y depuración ECLSS estabilizada.",
-      reposo_cv: "Reposo absoluto adoptado; carga operativa reducida e hidratación aplicada.",
-      rcp_dea: "Protocolo RCP/DEA y soporte vital básico ejecutado; ritmo en estabilización.",
-      glucosa_oral: "Administrados 15–20 g de glucosa oral de absorción rápida.",
-      iluminacion_descanso: "Iluminación circadiana aplicada y bloque de recuperación de sueño activado.",
-      recalentamiento: "Recalentamiento térmico progresivo y aislamiento de cabina activados.",
-      enfriamiento_lcvg: "Prenda de enfriamiento líquido (LCVG) activada al máximo flujo.",
-      protocolo_conductual: "Sesión breve de respiración guiada 4-6 y descarga cognitiva completada.",
-      ecg_ecografia_bordo: "Registro de ECG 3-derivaciones y ecografía portátil capturado para expediente.",
+      oxigeno_100: "100% supplemental oxygen delivered and ECLSS scrubbing stabilized.",
+      reposo_cv: "Absolute rest adopted; operational load reduced and hydration applied.",
+      rcp_dea: "CPR/AED protocol and basic life support executed; rhythm stabilizing.",
+      glucosa_oral: "15–20 g fast-acting oral glucose administered.",
+      iluminacion_descanso: "Circadian lighting applied and sleep recovery block activated.",
+      recalentamiento: "Progressive thermal rewarming and cabin insulation activated.",
+      enfriamiento_lcvg: "Liquid cooling garment (LCVG) activated at maximum flow.",
+      protocolo_conductual: "Brief 4-6 guided breathing and cognitive offload session completed.",
+      ecg_ecografia_bordo: "3-lead ECG and portable ultrasound captured for medical record.",
     };
     if (!(tipoIntervencion in mensajes)) {
-      return "Intervención registrada.";
+      return "Intervention logged.";
     }
     this.intervenciones_aplicadas.push(tipoIntervencion);
 
@@ -466,9 +466,9 @@ export class SimuladorSensores {
     this.escenario_actual = nombreEscenario;
     this._manual_overrides = {};
     this.intervenciones_aplicadas = [];
-    this._objetivo_actual = { ...cfg.base };
-    this._ruido_actual = { ...cfg.ruido };
-    this._cabina_actual = { ...cfg.cabin };
+    this._objetivo_actual = {...cfg.base };
+    this._ruido_actual = {...cfg.ruido };
+    this._cabina_actual = {...cfg.cabin };
     if (inmediato) {
       for (const v of FEATURE_NAMES) {
         const actual = this.valores_actuales[v];
@@ -502,7 +502,7 @@ export class SimuladorSensores {
   inyectarSobrecargaCardiovascular(critica = true, inmediato = true) {
     const esc = critica
       ? "evento_cardiovascular_agudo"
-      : "sobrecarga_cardiovascular_preventiva";
+: "sobrecarga_cardiovascular_preventiva";
     this.activarEscenario(esc, inmediato);
   }
 
